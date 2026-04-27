@@ -2,45 +2,29 @@
   "name": "dollarkilat",
   "version": "0.1.0",
   "private": true,
-  "description": "Earned in dollars, spend in rupiah. Indonesian stablecoin payment PWA.",
+  "description": "Earned in dollars, spend in rupiah. Indonesian stablecoin payment PWA — monorepo (apps/web + apps/api).",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
-    "dev": "next dev --turbopack",
-    "dev:pwa": "next dev --webpack",
-    "build": "next build --webpack",
-    "start": "next start",
-    "lint": "eslint",
-    "typecheck": "tsc --noEmit",
-    "fee-payer:generate": "tsx scripts/generate-fee-payer.ts"
-  },
-  "dependencies": {
-    "@privy-io/react-auth": "latest",
-    "@privy-io/server-auth": "latest",
-    "@serwist/next": "^9.0.0",
-    "@solana-program/token": "latest",
-    "@solana-program/system": "latest",
-    "@solana/kit": "latest",
-    "@supabase/supabase-js": "^2.45.0",
-    "bignumber.js": "^9.1.2",
-    "bs58": "^6.0.0",
-    "lucide-react": "latest",
-    "next": "16.2.4",
-    "qr-scanner": "^1.4.2",
-    "react": "19.2.4",
-    "react-dom": "19.2.4",
-    "serwist": "^9.0.0",
-    "sonner": "^1.7.0",
-    "tweetnacl": "^1.0.3",
-    "zod": "^3.23.0"
+    "dev": "concurrently -n web,api -c blue,magenta \"npm:dev:web\" \"npm:dev:api\"",
+    "dev:web": "npm --workspace @dollarkilat/web run dev",
+    "dev:web:pwa": "npm --workspace @dollarkilat/web run dev:pwa",
+    "dev:api": "npm --workspace @dollarkilat/api run dev",
+    "build": "npm --workspaces --if-present run build",
+    "build:web": "npm --workspace @dollarkilat/web run build",
+    "build:api": "npm --workspace @dollarkilat/api run build",
+    "start:web": "npm --workspace @dollarkilat/web run start",
+    "start:api": "npm --workspace @dollarkilat/api run start",
+    "lint": "npm --workspaces --if-present run lint",
+    "typecheck": "npm --workspaces --if-present run typecheck",
+    "fee-payer:generate": "npm --workspace @dollarkilat/api run fee-payer:generate"
   },
   "devDependencies": {
-    "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
-    "@types/react": "^19",
-    "@types/react-dom": "^19",
-    "eslint": "^9",
-    "eslint-config-next": "16.2.4",
-    "tailwindcss": "^4",
-    "tsx": "^4.19.0",
-    "typescript": "^5"
+    "concurrently": "^9.1.0"
+  },
+  "engines": {
+    "node": ">=18.18.0"
   }
 }

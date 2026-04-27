@@ -4,6 +4,37 @@
 
 ---
 
+## ⚠️ Monorepo Layout (Update 2026-04-27)
+
+Sejak Day 1, frontend & backend dipisah jadi 2 app dalam **1 repo monorepo (npm workspaces)**:
+
+- **`apps/web`** (`@dollarkilat/web`) — Next.js 16 PWA frontend. Deploy ke **Vercel**.
+- **`apps/api`** (`@dollarkilat/api`) — **Hono** backend on Node runtime. Deploy ke **Railway** (atau Fly/Render/Vercel-edge).
+- **`packages/shared`** (`@dollarkilat/shared`) — zod schemas + types yang dipakai bareng. Single source of truth.
+
+**Yang BERUBAH dari diagram di bawah:**
+
+- `Next.js App (Vercel) — Frontend + API` → sekarang 2 service:
+  - `apps/web` (UI + PWA + manifest + SW only — TIDAK ada API routes)
+  - `apps/api` di **`http://localhost:8787`** dev / Railway URL prod
+- Semua endpoint `/api/qris/*`, `/api/sponsor-tx`, `/api/consent/*`, `/api/webhooks/pjp`, `/api/balance/:address` sekarang **di apps/api** (Hono routes), BUKAN Next.js API routes.
+- Frontend memanggil backend via `process.env.NEXT_PUBLIC_API_URL` dengan `Authorization: Bearer <privy_token>`.
+- CORS: `apps/api` whitelist `WEB_ORIGIN` env (default `http://localhost:3000`).
+
+**Yang TIDAK berubah:**
+
+- Logic flow (state machine, latency optimization, idempotency rules, atomic quota) — semua tetap berlaku.
+- Database schema (Supabase) — tetap satu DB shared antara web (anon-key, RLS) dan api (service-role-key).
+- Solana / Privy / PJP integration — semua di apps/api (server-side).
+- Trust model (transient custody) — tetap.
+
+**Penyesuaian endpoint URL di docs:**
+- Yang tertulis `POST /api/qris/quote` → realnya `POST {NEXT_PUBLIC_API_URL}/qris/quote`
+- Yang tertulis `POST /api/qris/pay` → realnya `POST {NEXT_PUBLIC_API_URL}/qris/pay`
+- (drop prefix `/api` — Hono routes tidak pakai itu)
+
+---
+
 ## High-Level Flow
 
 ```

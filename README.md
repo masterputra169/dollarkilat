@@ -75,37 +75,68 @@ Oracle:      CoinGecko (primary) + Pyth (fallback)
 
 ---
 
+## Repo Layout (Monorepo)
+
+```
+dollarkilat/
+├── apps/
+│   ├── web/      # @dollarkilat/web — Next.js 16 PWA (deploy: Vercel)
+│   └── api/      # @dollarkilat/api — Hono backend (deploy: Railway / Fly / Vercel-edge)
+├── packages/
+│   └── shared/   # @dollarkilat/shared — zod schemas + types
+└── docs/         # planning docs
+```
+
+Frontend & backend independent deploys, share types via `@dollarkilat/shared`.
+
 ## Quick Start
 
 ```bash
-# 1. Clone & install
-git clone <repo-url> && cd <project-name>
+# 1. Clone & install (npm workspaces — install hoists deps)
+git clone <repo-url> dollarkilat && cd dollarkilat
 npm install
 
-# 2. Setup env
-cp .env.example .env.local
-# Isi: NEXT_PUBLIC_PRIVY_APP_ID, PRIVY_APP_SECRET,
-#      NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
-#      SUPABASE_SERVICE_ROLE_KEY,
-#      FEE_PAYER_PRIVATE_KEY (Solana keypair, devnet),
-#      HELIUS_RPC_URL,
-#      TREASURY_USDC_ATA
+# 2. Setup env per app
+cp .env.example apps/web/.env.local
+cp .env.example apps/api/.env.local
+# Edit each — frontend gets NEXT_PUBLIC_* + Privy app id + Supabase anon.
+# Backend gets all secrets (Privy app secret, service role, fee payer key, PJP).
 
 # 3. Generate fee payer wallet (sekali aja)
-npx ts-node scripts/generate-fee-payer.ts
-# Output: public key + private key. Simpan private di .env.local.
+npm run fee-payer:generate
+# Output: public key + base58 secret. Paste secret ke apps/api/.env.local.
 
 # 4. Fund fee payer dari devnet faucet
 solana airdrop 5 <FEE_PAYER_PUBKEY> --url devnet
+# atau pakai web faucet: https://faucet.solana.com
 
-# 5. Run
+# 5. Run kedua app parallel
 npm run dev
-# Buka http://localhost:3000
+# web → http://localhost:3000
+# api → http://localhost:8787
 
-# 6. Test PWA install
-# Build production + serve via HTTPS (Vercel preview atau ngrok)
-npm run build && npm start
+# Atau jalanin satu doang:
+npm run dev:web      # frontend only (Turbopack, PWA disabled)
+npm run dev:web:pwa  # frontend with webpack (test SW lokal)
+npm run dev:api      # backend only (tsx watch)
+
+# 6. Build production
+npm run build              # build kedua workspace
+npm run build:web          # web only
+npm run build:api          # api only
+
+# 7. Typecheck semua workspace
+npm run typecheck
 ```
+
+## Deploy
+
+| App | Host | Setup |
+| --- | --- | --- |
+| `apps/web` | **Vercel** | Project Settings → Root Directory = `apps/web`. Build command auto-detected. |
+| `apps/api` | **Railway** | New Service → Source = repo → Root Directory = `apps/api`. Start: `npm run start`. |
+
+Set `NEXT_PUBLIC_API_URL` di Vercel ke URL Railway api setelah deploy. Set `WEB_ORIGIN` di Railway ke URL Vercel.
 
 ---
 

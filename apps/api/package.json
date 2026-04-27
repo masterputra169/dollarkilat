@@ -1,0 +1,37 @@
+{
+  "name": "@dollarkilat/api",
+  "version": "0.1.0",
+  "private": true,
+  "description": "dollarkilat — Hono backend API (Solana fee payer, Privy server, Supabase service-role, PJP partner).",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "fee-payer:generate": "tsx scripts/generate-fee-payer.ts"
+  },
+  "dependencies": {
+    "@dollarkilat/shared": "*",
+    "@hono/node-server": "^1.13.0",
+    "@hono/zod-validator": "^0.4.0",
+    "@privy-io/server-auth": "latest",
+    "@solana-program/system": "latest",
+    "@solana-program/token": "latest",
+    "@solana/kit": "latest",
+    "@supabase/supabase-js": "^2.45.0",
+    "bignumber.js": "^9.1.2",
+    "bs58": "^6.0.0",
+    "hono": "^4.6.0",
+    "tweetnacl": "^1.0.3",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "eslint": "^9",
+    "tsx": "^4.19.0",
+    "typescript": "^5"
+  }
+}

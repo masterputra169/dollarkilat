@@ -1,8 +1,9 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# Patterns without leading slash match anywhere (works for monorepo workspaces).
 
-# dependencies
-/node_modules
-/.pnp
+# ── Dependencies (root + per-workspace) ──────────────────────
+node_modules
+.pnp
 .pnp.*
 .yarn/*
 !.yarn/patches
@@ -10,57 +11,52 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
+# ── Build output ─────────────────────────────────────────────
+.next
+out
+dist
+build
+coverage
 
-# next.js
-/.next/
-/out/
+# ── TypeScript ───────────────────────────────────────────────
+*.tsbuildinfo
+next-env.d.ts
 
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files — NEVER commit secrets. .env.example IS committed (no leading dot rule needed).
+# ── Env files (NEVER commit secrets; .env.example IS committed) ──
 .env
 .env.local
 .env*.local
 .env.development
 .env.production
 
-# vercel
+# ── Vercel ───────────────────────────────────────────────────
 .vercel
 
-# typescript
-*.tsbuildinfo
-next-env.d.ts
-
-# Solana fee payer keypair (base58 secret leaks here too)
+# ── Solana keypairs (base58 secret leaks here) ───────────────
 fee-payer.json
 treasury-*.json
 *.keypair.json
 
-# Editor / OS junk
+# ── PWA generated artifacts (regenerated on build) ───────────
+apps/web/public/sw.js
+apps/web/public/sw.js.map
+apps/web/public/swe-worker-*.js
+apps/web/public/workbox-*.js
+
+# ── Editor / OS junk ─────────────────────────────────────────
 .idea/
 .vscode/
 *.swp
 .DS_Store
 Thumbs.db
 
-# Claude Code per-user settings (project shared settings go in .claude/settings.json)
-.claude/settings.local.json
+# ── Debug logs ───────────────────────────────────────────────
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.pem
 
-# PWA generated artifacts (regenerated on build)
-public/sw.js
-public/sw.js.map
-public/swe-worker-*.js
-public/workbox-*.js
+# ── Claude Code per-user settings ────────────────────────────
+.claude/settings.local.json
+.claude/scheduled_tasks.lock
