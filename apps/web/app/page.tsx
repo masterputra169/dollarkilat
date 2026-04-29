@@ -71,23 +71,11 @@ export default function Home() {
         </div>
       </section>
 
-      {/* how it works */}
-      <section
-        id="cara-kerja"
-        className="relative bg-[var(--color-bg-subtle)]"
-      >
-        {/* smooth fade from body bg into section bg — kills the hard seam */}
+      {/* how it works — no section bg, lets body aurora flow through */}
+      <section id="cara-kerja" className="relative">
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[var(--color-bg)] to-transparent"
-        />
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[var(--color-bg)] to-transparent"
-        />
-        <div
-          aria-hidden
-          className="bg-dots mask-fade-y absolute inset-0 opacity-30"
+          className="bg-dots pointer-events-none absolute inset-0 opacity-50 [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black_30%,transparent_85%)]"
         />
         <div className="relative mx-auto max-w-5xl px-6 py-20 sm:px-10">
           <div className="mb-12 text-center">
