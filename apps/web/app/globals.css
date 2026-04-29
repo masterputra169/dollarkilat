@@ -153,6 +153,29 @@ body {
   }
 }
 
+/* Continuous fixed grid texture — sits behind everything, viewport-fixed
+   so no per-section boundaries can create seams. Soft radial mask focuses
+   the texture toward the center of the screen. */
+.bg-aurora::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    linear-gradient(to right, var(--border-subtle) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border-subtle) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 40%, black 10%, transparent 75%);
+  mask-image: radial-gradient(ellipse 70% 70% at 50% 40%, black 10%, transparent 75%);
+  opacity: 0.5;
+}
+@media (prefers-color-scheme: dark) {
+  .bg-aurora::before {
+    opacity: 0.55;
+  }
+}
+
 /* Grid: fine 40px graph, faint border lines */
 .bg-grid {
   background-image:

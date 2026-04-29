@@ -17,14 +17,8 @@ export default function Home() {
         </Link>
       </nav>
 
-      {/* hero */}
+      {/* hero — texture comes from body-level fixed grid; no per-section overlay */}
       <section className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center px-6 pb-20 pt-8 text-center sm:px-10 sm:pt-16">
-        {/* decorative grid only — aurora at body provides color tone */}
-        <div
-          aria-hidden
-          className="bg-grid mask-fade-radial pointer-events-none absolute inset-0 -z-10 opacity-50"
-        />
-
         <Pill tone="brand" icon={<Zap className="size-3" />}>
           Hackathon MVP · Solana Devnet
         </Pill>
@@ -71,12 +65,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* how it works — no section bg, lets body aurora flow through */}
+      {/* how it works — relies on body-level texture; no section overlay */}
       <section id="cara-kerja" className="relative">
-        <div
-          aria-hidden
-          className="bg-dots pointer-events-none absolute inset-0 opacity-50 [mask-image:radial-gradient(ellipse_60%_60%_at_50%_50%,black_30%,transparent_85%)]"
-        />
         <div className="relative mx-auto max-w-5xl px-6 py-20 sm:px-10">
           <div className="mb-12 text-center">
             <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--color-fg-subtle)]">
