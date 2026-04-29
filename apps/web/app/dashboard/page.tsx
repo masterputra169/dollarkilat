@@ -5,8 +5,24 @@ import { useWallets as useSolanaWallets } from "@privy-io/react-auth/solana";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  Check,
+  Clock,
+  Copy,
+  History,
+  LogOut,
+  QrCode,
+  Sparkles,
+} from "lucide-react";
 import type { User, UserSyncResponse } from "@dollarkilat/shared";
 import { api, ApiError } from "@/lib/api";
+import { Logo } from "@/components/brand/logo";
+import { Button } from "@/components/ui/button";
+import { Card, CardLabel } from "@/components/ui/card";
+import { Pill } from "@/components/ui/pill";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
   const { ready, authenticated, user, logout, getAccessToken } = usePrivy();
@@ -15,16 +31,14 @@ export default function DashboardPage() {
 
   const [synced, setSynced] = useState<User | null>(null);
   const [syncing, setSyncing] = useState(false);
+  const [copied, setCopied] = useState(false);
 
-  // Redirect unauthenticated visitors to /login.
   useEffect(() => {
     if (ready && !authenticated) {
       router.replace("/login");
     }
   }, [ready, authenticated, router]);
 
-  // Sync to Supabase users table once authenticated. Idempotent — backend
-  // upserts on privy_id, so safe to re-run on every mount.
   useEffect(() => {
     if (!ready || !authenticated || synced || syncing) return;
 
@@ -65,78 +79,195 @@ export default function DashboardPage() {
 
   if (!ready || !authenticated) {
     return (
-      <main className="flex flex-1 items-center justify-center bg-zinc-50 dark:bg-black">
-        <p className="text-sm text-zinc-500">Memuat…</p>
+      <main className="flex flex-1 items-center justify-center">
+        <div className="size-6 rounded-full border-2 border-[--color-fg-subtle] border-t-transparent animate-spin" />
       </main>
     );
   }
 
-  const email = user?.email?.address ?? user?.google?.email ?? "—";
+  const email = synced?.email ?? user?.email?.address ?? user?.google?.email ?? null;
   const solanaAddress =
     synced?.solana_address ?? solanaWallets[0]?.address ?? null;
+  const shortAddr = solanaAddress
+    ? `${solanaAddress.slice(0, 4)}…${solanaAddress.slice(-4)}`
+    : null;
+
+  async function copyAddress() {
+    if (!solanaAddress) return;
+    await navigator.clipboard.writeText(solanaAddress);
+    setCopied(true);
+    toast.success("Alamat disalin");
+    setTimeout(() => setCopied(false), 2000);
+  }
 
   return (
-    <main className="flex flex-1 flex-col bg-zinc-50 px-6 py-8 dark:bg-black sm:px-10">
-      <header className="mx-auto flex w-full max-w-2xl items-center justify-between">
-        <div>
-          <p className="text-xs uppercase tracking-wider text-zinc-500">
-            Dashboard
-          </p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Halo 👋
-          </h1>
+    <main className="flex flex-1 flex-col">
+      {/* sticky header */}
+      <header className="sticky top-0 z-10 border-b border-[--color-border-subtle] bg-[--color-bg]/80 backdrop-blur-md">
+        <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-6 py-3.5 sm:px-8">
+          <Logo />
+          <div className="flex items-center gap-2">
+            {email && (
+              <span className="hidden max-w-[180px] truncate text-xs text-[--color-fg-muted] sm:inline">
+                {email}
+              </span>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => logout()}
+              leftIcon={<LogOut className="size-3.5" />}
+            >
+              Keluar
+            </Button>
+          </div>
         </div>
-        <button
-          type="button"
-          onClick={() => logout()}
-          className="inline-flex h-9 items-center justify-center rounded-full border border-zinc-300 px-4 text-sm font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
-        >
-          Keluar
-        </button>
       </header>
 
-      <section className="mx-auto mt-8 grid w-full max-w-2xl gap-4">
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-          <p className="text-xs uppercase tracking-wider text-zinc-500">
-            Email
-          </p>
-          <p className="mt-1 break-all font-medium text-zinc-900 dark:text-zinc-100">
-            {email}
-          </p>
+      <div className="mx-auto w-full max-w-2xl space-y-4 px-6 py-6 sm:space-y-5 sm:px-8 sm:py-8">
+        {/* greeting */}
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-sm text-[--color-fg-subtle]">Selamat datang 👋</p>
+            <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-[--color-fg]">
+              Dashboard
+            </h1>
+          </div>
+          <Pill tone="success" icon={<Sparkles className="size-3" />}>
+            5 tx gratis
+          </Pill>
         </div>
 
-        <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-zinc-800 dark:bg-zinc-950">
-          <p className="text-xs uppercase tracking-wider text-zinc-500">
-            Alamat Solana
-          </p>
-          <p className="mt-1 break-all font-mono text-sm text-zinc-900 dark:text-zinc-100">
-            {solanaAddress ?? (syncing ? "Memuat…" : "Belum tersedia")}
-          </p>
-          {solanaAddress && (
-            <button
-              type="button"
-              onClick={async () => {
-                await navigator.clipboard.writeText(solanaAddress);
-                toast.success("Alamat disalin");
-              }}
-              className="mt-3 inline-flex h-8 items-center justify-center rounded-full border border-zinc-300 px-3 text-xs font-medium text-zinc-700 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-200 dark:hover:bg-zinc-900"
-            >
-              Salin alamat
-            </button>
-          )}
+        {/* balance hero */}
+        <Card variant="elevated" className="overflow-hidden">
+          <div className="px-6 pt-5 sm:px-8 sm:pt-6">
+            <CardLabel>Saldo USDC</CardLabel>
+            {syncing && !synced ? (
+              <Skeleton className="mt-3 h-12 w-40" />
+            ) : (
+              <p className="mt-2 text-5xl font-semibold tabular-nums tracking-tight text-[--color-fg] sm:text-6xl">
+                0<span className="text-[--color-fg-subtle]">.00</span>
+              </p>
+            )}
+            <p className="mt-2 text-sm text-[--color-fg-muted]">
+              ≈ Rp 0 <span className="text-[--color-fg-faint]">(estimasi)</span>
+            </p>
+          </div>
+          <div className="mt-5 flex items-center gap-2 border-t border-[--color-border-subtle] bg-[--color-bg-subtle] px-6 py-3 text-xs text-[--color-fg-muted] sm:px-8">
+            <Clock className="size-3.5" />
+            Saldo live tersedia di Day 3 — Helius RPC integrasi
+          </div>
+        </Card>
+
+        {/* wallet address */}
+        <Card>
+          <div className="flex items-center justify-between p-5 sm:p-6">
+            <div className="min-w-0 flex-1">
+              <CardLabel>Alamat Solana</CardLabel>
+              <p className="mt-2 truncate font-mono text-sm text-[--color-fg]">
+                {solanaAddress ? (
+                  <>
+                    <span className="hidden sm:inline">{solanaAddress}</span>
+                    <span className="sm:hidden">{shortAddr}</span>
+                  </>
+                ) : syncing ? (
+                  <Skeleton className="h-4 w-48" />
+                ) : (
+                  "Belum tersedia"
+                )}
+              </p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={copyAddress}
+                disabled={!solanaAddress}
+                aria-label="Salin alamat"
+                leftIcon={
+                  copied ? (
+                    <Check className="size-3.5 text-[--color-success]" />
+                  ) : (
+                    <Copy className="size-3.5" />
+                  )
+                }
+              >
+                <span className="hidden sm:inline">
+                  {copied ? "Tersalin" : "Salin"}
+                </span>
+              </Button>
+            </div>
+          </div>
+        </Card>
+
+        {/* quick actions */}
+        <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+          <ActionTile
+            icon={<QrCode className="size-5" />}
+            label="Bayar"
+            badge="Day 6"
+            disabled
+          />
+          <ActionTile
+            icon={<ArrowDownToLine className="size-5" />}
+            label="Terima"
+            badge="Day 4"
+            disabled
+          />
+          <ActionTile
+            icon={<History className="size-5" />}
+            label="Riwayat"
+            badge="Day 9"
+            disabled
+          />
         </div>
 
-        <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 p-5 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
-          <p className="font-medium text-zinc-900 dark:text-zinc-100">
-            Day 3 berikutnya
-          </p>
-          <p className="mt-1">
-            Dashboard akan menampilkan saldo USDC, ekuivalen Rupiah, dan jumlah
-            transaksi gratis tersisa. Untuk sekarang, kirim USDC devnet ke
-            alamat di atas — saldo akan muncul setelah Day 3.
-          </p>
-        </div>
-      </section>
+        {/* empty transactions */}
+        <Card variant="outline">
+          <div className="flex flex-col items-center px-6 py-10 text-center sm:py-12">
+            <div className="flex size-12 items-center justify-center rounded-full bg-[--color-bg-subtle] text-[--color-fg-subtle]">
+              <ArrowUpFromLine className="size-5" />
+            </div>
+            <h3 className="mt-4 text-base font-semibold text-[--color-fg]">
+              Belum ada transaksi
+            </h3>
+            <p className="mt-1.5 max-w-sm text-sm text-[--color-fg-muted]">
+              Kirim USDC devnet ke alamat di atas untuk testing. Riwayat akan muncul
+              di sini setelah Day 9.
+            </p>
+          </div>
+        </Card>
+      </div>
     </main>
+  );
+}
+
+function ActionTile({
+  icon,
+  label,
+  badge,
+  disabled,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  badge: string;
+  disabled?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      className="group relative flex flex-col items-center gap-2 rounded-2xl border border-[--color-border] bg-[--color-bg-elevated] px-3 py-4 text-[--color-fg] transition-all duration-150 hover:border-[--color-border-subtle] hover:bg-[--color-bg-subtle] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-[--color-bg-elevated] sm:py-5"
+    >
+      <span className="flex size-10 items-center justify-center rounded-full bg-[--color-brand-soft] text-[--color-brand-soft-fg] transition-transform duration-150 group-hover:scale-105">
+        {icon}
+      </span>
+      <span className="text-sm font-medium">{label}</span>
+      {disabled && (
+        <span className="text-[10px] font-medium uppercase tracking-wider text-[--color-fg-faint]">
+          {badge}
+        </span>
+      )}
+    </button>
   );
 }

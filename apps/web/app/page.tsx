@@ -1,93 +1,124 @@
 import Link from "next/link";
+import { ArrowRight, Code2, ShieldCheck, Zap } from "lucide-react";
+import { Logo } from "@/components/brand/logo";
+import { Pill } from "@/components/ui/pill";
 
 export default function Home() {
   return (
-    <main className="flex flex-1 flex-col bg-zinc-50 dark:bg-black">
-      <section className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center sm:px-10">
-        <span className="mb-4 inline-flex items-center gap-2 rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-medium text-blue-700 dark:border-blue-900 dark:bg-blue-950 dark:text-blue-200">
-          <span className="size-1.5 rounded-full bg-blue-500" />
-          Hackathon MVP — Devnet
-        </span>
+    <main className="flex flex-1 flex-col">
+      {/* nav */}
+      <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5 sm:px-10">
+        <Logo />
+        <Link
+          href="/login"
+          className="text-sm font-medium text-[--color-fg-muted] transition-colors hover:text-[--color-fg]"
+        >
+          Masuk
+        </Link>
+      </nav>
 
-        <h1 className="text-balance text-4xl font-semibold leading-tight tracking-tight text-zinc-900 dark:text-zinc-50 sm:text-5xl md:text-6xl">
+      {/* hero */}
+      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center px-6 pb-20 pt-8 text-center sm:px-10 sm:pt-16">
+        <Pill tone="brand" icon={<Zap className="size-3" />}>
+          Hackathon MVP · Solana Devnet
+        </Pill>
+
+        <h1 className="mt-6 text-balance text-[clamp(2.5rem,9vw,6rem)] font-semibold leading-[0.95] tracking-[-0.04em] text-[--color-fg]">
           Earned in dollars,
           <br />
-          spend in rupiah.
+          <span className="text-[--color-brand]">spend in rupiah.</span>
         </h1>
 
-        <p className="mt-5 max-w-xl text-pretty text-base leading-7 text-zinc-600 dark:text-zinc-400 sm:text-lg">
-          Terima USDC dari klien luar negeri, langsung bayar QRIS di 40+ juta
-          merchant Indonesia. Tanpa beli SOL untuk gas, tanpa popup tiap
-          transaksi.
+        <p className="mt-6 max-w-xl text-pretty text-base leading-relaxed text-[--color-fg-muted] sm:text-lg">
+          Terima USDC dari klien luar negeri, langsung bayar QRIS di 40+ juta merchant
+          Indonesia. Tanpa beli SOL untuk gas, tanpa popup tiap transaksi.
         </p>
 
-        <div className="mt-8 flex w-full max-w-sm flex-col gap-3 sm:flex-row sm:justify-center">
+        <div className="mt-10 flex w-full max-w-md flex-col gap-3 sm:flex-row sm:justify-center">
           <Link
             href="/login"
-            className="inline-flex h-12 flex-1 items-center justify-center rounded-full bg-blue-600 px-6 text-base font-medium text-white transition-colors hover:bg-blue-700"
+            className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-full bg-[--color-brand] px-6 text-base font-medium text-[--color-brand-fg] shadow-sm transition-all duration-150 hover:bg-[--color-brand-hover] active:scale-[0.98]"
           >
             Mulai Sekarang
+            <ArrowRight className="size-4" />
           </Link>
           <Link
             href="#cara-kerja"
-            className="inline-flex h-12 flex-1 items-center justify-center rounded-full border border-zinc-300 px-6 text-base font-medium text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-900"
+            className="inline-flex h-12 flex-1 items-center justify-center rounded-full border border-[--color-border] bg-[--color-bg-elevated] px-6 text-base font-medium text-[--color-fg] transition-colors hover:bg-[--color-bg-subtle]"
           >
-            Lihat Cara Kerja
+            Cara Kerja
           </Link>
         </div>
 
-        <p className="mt-6 text-xs text-zinc-500 dark:text-zinc-500">
-          Saldo USDC kamu tetap di wallet kamu sendiri. Kami bukan custodian.
-        </p>
+        <div className="mt-12 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-[--color-fg-subtle]">
+          <span className="inline-flex items-center gap-1.5">
+            <ShieldCheck className="size-3.5" />
+            Non-custodial
+          </span>
+          <span aria-hidden className="text-[--color-fg-faint]">·</span>
+          <span className="inline-flex items-center gap-1.5">
+            <Code2 className="size-3.5" />
+            Open source
+          </span>
+          <span aria-hidden className="text-[--color-fg-faint]">·</span>
+          <span>Powered by Solana</span>
+        </div>
       </section>
 
+      {/* how it works */}
       <section
         id="cara-kerja"
-        className="border-t border-zinc-200 bg-white px-6 py-16 dark:border-zinc-800 dark:bg-zinc-950 sm:px-10"
+        className="border-t border-[--color-border-subtle] bg-[--color-bg-subtle]"
       >
-        <div className="mx-auto grid max-w-4xl gap-8 sm:grid-cols-3">
-          <div>
-            <div className="mb-3 inline-flex size-9 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-200">
-              1
-            </div>
-            <h3 className="font-medium text-zinc-900 dark:text-zinc-100">
-              Signup pakai email
-            </h3>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              Embedded Solana wallet otomatis. Tanpa seed phrase, tanpa Phantom
-              install.
+        <div className="mx-auto max-w-5xl px-6 py-20 sm:px-10">
+          <div className="mb-12 text-center">
+            <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[--color-fg-subtle]">
+              Cara Kerja
             </p>
+            <h2 className="mt-2 text-3xl font-semibold tracking-tight text-[--color-fg] sm:text-4xl">
+              Tiga langkah, selesai.
+            </h2>
           </div>
-          <div>
-            <div className="mb-3 inline-flex size-9 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-200">
-              2
-            </div>
-            <h3 className="font-medium text-zinc-900 dark:text-zinc-100">
-              Terima USDC
-            </h3>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              Bagikan alamat wallet kamu ke klien. USDC masuk langsung ke wallet
-              Privy kamu.
-            </p>
-          </div>
-          <div>
-            <div className="mb-3 inline-flex size-9 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700 dark:bg-blue-950 dark:text-blue-200">
-              3
-            </div>
-            <h3 className="font-medium text-zinc-900 dark:text-zinc-100">
-              Scan QRIS, tap, selesai
-            </h3>
-            <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-              Konversi otomatis USDC → IDR saat bayar. Gas gratis untuk 5 tx
-              pertama.
-            </p>
+
+          <div className="grid gap-px overflow-hidden rounded-2xl border border-[--color-border] bg-[--color-border] sm:grid-cols-3">
+            <Step
+              n={1}
+              title="Signup pakai email"
+              body="Embedded Solana wallet otomatis dibuat. Tanpa seed phrase, tanpa Phantom install."
+            />
+            <Step
+              n={2}
+              title="Terima USDC"
+              body="Bagikan alamat wallet kamu ke klien. USDC masuk langsung ke wallet Privy kamu."
+            />
+            <Step
+              n={3}
+              title="Scan QRIS, tap, selesai"
+              body="Konversi otomatis USDC → IDR saat bayar. Gas gratis untuk 5 transaksi pertama."
+            />
           </div>
         </div>
       </section>
 
-      <footer className="border-t border-zinc-200 px-6 py-6 text-center text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-500">
-        dollarkilat — built by 2 mahasiswa Teknik Informatika · Solana Devnet
+      <footer className="border-t border-[--color-border-subtle] py-8 text-center text-xs text-[--color-fg-subtle]">
+        <div className="mx-auto max-w-6xl px-6 sm:px-10">
+          dollarkilat — built by 2 mahasiswa Teknik Informatika · Solana Devnet
+        </div>
       </footer>
     </main>
+  );
+}
+
+function Step({ n, title, body }: { n: number; title: string; body: string }) {
+  return (
+    <div className="bg-[--color-bg-elevated] p-6 sm:p-8">
+      <span className="inline-flex size-8 items-center justify-center rounded-full bg-[--color-brand-soft] text-sm font-semibold text-[--color-brand-soft-fg]">
+        {n}
+      </span>
+      <h3 className="mt-5 text-base font-semibold text-[--color-fg]">{title}</h3>
+      <p className="mt-2 text-sm leading-relaxed text-[--color-fg-muted]">
+        {body}
+      </p>
+    </div>
   );
 }
