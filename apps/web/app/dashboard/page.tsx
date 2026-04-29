@@ -164,7 +164,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between p-5 sm:p-6">
             <div className="min-w-0 flex-1">
               <CardLabel>Alamat Solana</CardLabel>
-              <p className="mt-2 truncate font-mono text-sm text-[var(--color-fg)]">
+              <div className="mt-2 truncate font-mono text-sm text-[var(--color-fg)]">
                 {solanaAddress ? (
                   <>
                     <span className="hidden sm:inline">{solanaAddress}</span>
@@ -173,9 +173,9 @@ export default function DashboardPage() {
                 ) : syncing ? (
                   <Skeleton className="h-4 w-48" />
                 ) : (
-                  "Belum tersedia"
+                  <span className="text-[var(--color-fg-muted)]">Belum tersedia</span>
                 )}
-              </p>
+              </div>
             </div>
             <div className="flex shrink-0 items-center gap-2">
               <Button
