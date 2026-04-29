@@ -74,11 +74,20 @@ export default function Home() {
       {/* how it works */}
       <section
         id="cara-kerja"
-        className="relative border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)]"
+        className="relative bg-[var(--color-bg-subtle)]"
       >
+        {/* smooth fade from body bg into section bg — kills the hard seam */}
         <div
           aria-hidden
-          className="bg-dots mask-fade-y absolute inset-0 opacity-40"
+          className="pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-[var(--color-bg)] to-transparent"
+        />
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-[var(--color-bg)] to-transparent"
+        />
+        <div
+          aria-hidden
+          className="bg-dots mask-fade-y absolute inset-0 opacity-30"
         />
         <div className="relative mx-auto max-w-5xl px-6 py-20 sm:px-10">
           <div className="mb-12 text-center">
@@ -110,7 +119,7 @@ export default function Home() {
         </div>
       </section>
 
-      <footer className="border-t border-[var(--color-border-subtle)] py-8 text-center text-xs text-[var(--color-fg-subtle)]">
+      <footer className="relative py-8 text-center text-xs text-[var(--color-fg-subtle)]">
         <div className="mx-auto max-w-6xl px-6 sm:px-10">
           dollarkilat — built by 2 mahasiswa Teknik Informatika · Solana Devnet
         </div>

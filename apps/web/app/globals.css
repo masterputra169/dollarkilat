@@ -5,10 +5,10 @@
    are intentional pairings (not auto-inverted).
    ─────────────────────────────────────────────────────── */
 :root {
-  /* surfaces */
-  --bg: #fafafa;             /* zinc-50 */
-  --bg-elevated: #ffffff;
-  --bg-subtle: #f4f4f5;      /* zinc-100 */
+  /* surfaces — 3-tier elevation, gentle delta between bg and bg-subtle */
+  --bg: #fafafa;             /* zinc-50 — body base */
+  --bg-elevated: #ffffff;    /* lifted cards */
+  --bg-subtle: #f6f6f7;      /* recessed sections — small delta to blend */
 
   /* foreground */
   --fg: #09090b;             /* zinc-950 */
@@ -48,9 +48,9 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #09090b;          /* zinc-950 — base */
-    --bg-elevated: #1c1c20; /* lifted 1 step from base */
-    --bg-subtle: #131316;   /* recessed surface — used for sections */
+    --bg: #09090b;          /* zinc-950 — body base */
+    --bg-elevated: #1c1c20; /* lifted cards — clearly above body */
+    --bg-subtle: #0c0c0f;   /* recessed sections — minimal delta to blend */
 
     --fg: #fafafa;
     --fg-muted: #a1a1aa;
