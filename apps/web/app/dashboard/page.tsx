@@ -206,18 +206,21 @@ export default function DashboardPage() {
             icon={<QrCode className="size-5" />}
             label="Bayar"
             badge="Day 6"
+            tone="brand"
             disabled
           />
           <ActionTile
             icon={<ArrowDownToLine className="size-5" />}
             label="Terima"
             badge="Day 4"
+            tone="emerald"
             disabled
           />
           <ActionTile
             icon={<History className="size-5" />}
             label="Riwayat"
             badge="Day 9"
+            tone="amber"
             disabled
           />
         </div>
@@ -242,29 +245,44 @@ export default function DashboardPage() {
   );
 }
 
+type ActionTone = "brand" | "emerald" | "amber";
+
+const actionToneStyles: Record<ActionTone, string> = {
+  brand:
+    "bg-[var(--color-brand-soft)] text-[var(--color-brand-soft-fg)]",
+  emerald:
+    "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300",
+  amber:
+    "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300",
+};
+
 function ActionTile({
   icon,
   label,
   badge,
+  tone = "brand",
   disabled,
 }: {
   icon: React.ReactNode;
   label: string;
   badge: string;
+  tone?: ActionTone;
   disabled?: boolean;
 }) {
   return (
     <button
       type="button"
       disabled={disabled}
-      className="group relative flex flex-col items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-4 text-[var(--color-fg)] transition-all duration-150 hover:border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-subtle)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-[var(--color-bg-elevated)] sm:py-5"
+      className="group relative flex flex-col items-center gap-2.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-5 text-[var(--color-fg)] shadow-[var(--shadow-sm)] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-[var(--shadow-sm)]"
     >
-      <span className="flex size-10 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-soft-fg)] transition-transform duration-150 group-hover:scale-105">
+      <span
+        className={`flex size-11 items-center justify-center rounded-xl transition-transform duration-150 group-hover:scale-105 ${actionToneStyles[tone]}`}
+      >
         {icon}
       </span>
       <span className="text-sm font-medium">{label}</span>
       {disabled && (
-        <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-fg-faint)]">
+        <span className="rounded-full bg-[var(--color-bg-subtle)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--color-fg-subtle)]">
           {badge}
         </span>
       )}

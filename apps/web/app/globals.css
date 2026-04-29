@@ -48,16 +48,16 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #09090b;
-    --bg-elevated: #18181b;
-    --bg-subtle: #18181b;
+    --bg: #09090b;          /* zinc-950 — base */
+    --bg-elevated: #1c1c20; /* lifted 1 step from base */
+    --bg-subtle: #131316;   /* recessed surface — used for sections */
 
     --fg: #fafafa;
     --fg-muted: #a1a1aa;
     --fg-subtle: #71717a;
     --fg-faint: #52525b;
 
-    --border: #27272a;
+    --border: #2a2a2e;
     --border-subtle: #1f1f23;
 
     --brand: #3b82f6;
