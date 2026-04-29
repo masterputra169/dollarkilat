@@ -104,7 +104,7 @@ export default function DashboardPage() {
     <main className="flex flex-1 flex-col">
       {/* sticky header */}
       <header className="sticky top-0 z-10 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg)]/80 backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-6 py-3.5 sm:px-8">
+        <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-5 py-3 sm:px-8 sm:py-3.5">
           <Logo />
           <div className="flex items-center gap-2">
             {email && (
@@ -118,13 +118,13 @@ export default function DashboardPage() {
               onClick={() => logout()}
               leftIcon={<LogOut className="size-3.5" />}
             >
-              Keluar
+              <span className="hidden sm:inline">Keluar</span>
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-2xl space-y-4 px-6 py-6 sm:space-y-5 sm:px-8 sm:py-8">
+      <div className="mx-auto w-full max-w-2xl space-y-4 px-5 py-5 sm:space-y-5 sm:px-8 sm:py-8">
         {/* greeting */}
         <div className="flex items-center justify-between">
           <div>
@@ -140,31 +140,31 @@ export default function DashboardPage() {
 
         {/* balance hero */}
         <Card variant="elevated" className="bg-card-mesh relative overflow-hidden">
-          <div className="relative px-6 pt-5 sm:px-8 sm:pt-6">
+          <div className="relative px-5 pt-5 sm:px-8 sm:pt-6">
             <CardLabel>Saldo USDC</CardLabel>
             {syncing && !synced ? (
               <Skeleton className="mt-3 h-12 w-40" />
             ) : (
-              <p className="mt-2 text-5xl font-semibold tabular-nums tracking-tight text-[var(--color-fg)] sm:text-6xl">
+              <p className="mt-2 text-[2.75rem] font-semibold tabular-nums tracking-tight text-[var(--color-fg)] sm:text-6xl">
                 0<span className="text-[var(--color-fg-subtle)]">.00</span>
               </p>
             )}
-            <p className="mt-2 text-sm text-[var(--color-fg-muted)]">
+            <p className="mt-1.5 text-sm text-[var(--color-fg-muted)] sm:mt-2">
               ≈ Rp 0 <span className="text-[var(--color-fg-faint)]">(estimasi)</span>
             </p>
           </div>
-          <div className="mt-5 flex items-center gap-2 border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)] px-6 py-3 text-xs text-[var(--color-fg-muted)] sm:px-8">
-            <Clock className="size-3.5" />
-            Saldo live tersedia di Day 3 — Helius RPC integrasi
+          <div className="mt-4 flex items-center gap-2 border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)] px-5 py-2.5 text-xs text-[var(--color-fg-muted)] sm:mt-5 sm:px-8 sm:py-3">
+            <Clock className="size-3.5 shrink-0" />
+            <span className="truncate">Saldo live tersedia di Day 3 — Helius RPC</span>
           </div>
         </Card>
 
         {/* wallet address */}
         <Card>
-          <div className="flex items-center justify-between p-5 sm:p-6">
+          <div className="flex items-center justify-between gap-3 p-4 sm:p-6">
             <div className="min-w-0 flex-1">
               <CardLabel>Alamat Solana</CardLabel>
-              <div className="mt-2 truncate font-mono text-sm text-[var(--color-fg)]">
+              <div className="mt-2 truncate font-mono text-[13px] text-[var(--color-fg)] sm:text-sm">
                 {solanaAddress ? (
                   <>
                     <span className="hidden sm:inline">{solanaAddress}</span>
@@ -205,21 +205,21 @@ export default function DashboardPage() {
           <ActionTile
             icon={<QrCode className="size-5" />}
             label="Bayar"
-            badge="Day 6"
+            badge="Segera"
             tone="brand"
             disabled
           />
           <ActionTile
             icon={<ArrowDownToLine className="size-5" />}
             label="Terima"
-            badge="Day 4"
+            badge="Segera"
             tone="emerald"
             disabled
           />
           <ActionTile
             icon={<History className="size-5" />}
             label="Riwayat"
-            badge="Day 9"
+            badge="Segera"
             tone="amber"
             disabled
           />
@@ -227,7 +227,7 @@ export default function DashboardPage() {
 
         {/* empty transactions */}
         <Card variant="outline">
-          <div className="flex flex-col items-center px-6 py-10 text-center sm:py-12">
+          <div className="flex flex-col items-center px-5 py-10 text-center sm:px-6 sm:py-12">
             <div className="flex size-12 items-center justify-center rounded-full bg-[var(--color-bg-subtle)] text-[var(--color-fg-subtle)]">
               <ArrowUpFromLine className="size-5" />
             </div>
@@ -273,16 +273,16 @@ function ActionTile({
     <button
       type="button"
       disabled={disabled}
-      className="group relative flex flex-col items-center gap-2.5 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-5 text-[var(--color-fg)] shadow-[var(--shadow-sm)] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-[var(--shadow-sm)]"
+      className="group relative flex flex-col items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-2 py-4 text-[var(--color-fg)] shadow-[var(--shadow-sm)] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-[var(--shadow-sm)] sm:gap-2.5 sm:px-3 sm:py-5"
     >
       <span
-        className={`flex size-11 items-center justify-center rounded-xl transition-transform duration-150 group-hover:scale-105 ${actionToneStyles[tone]}`}
+        className={`flex size-10 items-center justify-center rounded-xl transition-transform duration-150 group-hover:scale-105 sm:size-11 ${actionToneStyles[tone]}`}
       >
         {icon}
       </span>
-      <span className="text-sm font-medium">{label}</span>
+      <span className="text-[13px] font-medium sm:text-sm">{label}</span>
       {disabled && (
-        <span className="rounded-full bg-[var(--color-bg-subtle)] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.1em] text-[var(--color-fg-subtle)]">
+        <span className="rounded-full bg-[var(--color-bg-subtle)] px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-[0.08em] text-[var(--color-fg-subtle)] sm:px-2 sm:tracking-[0.1em]">
           {badge}
         </span>
       )}

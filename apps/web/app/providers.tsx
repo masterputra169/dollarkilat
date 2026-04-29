@@ -2,7 +2,6 @@
 
 import { PrivyProvider } from "@privy-io/react-auth";
 import { toSolanaWalletConnectors } from "@privy-io/react-auth/solana";
-import { Toaster } from "sonner";
 import { publicEnv } from "@/lib/env";
 
 const solanaConnectors = toSolanaWalletConnectors();
@@ -18,8 +17,8 @@ export function Providers({ children }: { children: React.ReactNode }) {
       config={{
         loginMethods: ["email", "google"],
         appearance: {
-          theme: "light",
-          accentColor: "#0066ff",
+          theme: "dark",
+          accentColor: "#3b82f6",
           logo: undefined,
           walletChainType: "solana-only",
           showWalletLoginFirst: false,
@@ -34,7 +33,6 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }}
     >
       {children}
-      <Toaster position="top-center" richColors closeButton />
     </PrivyProvider>
   );
 }

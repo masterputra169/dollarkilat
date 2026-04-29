@@ -6,7 +6,7 @@ export function Skeleton({
 }: HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={`rounded-md bg-[var(--color-bg-subtle)] animate-pulse ${className}`}
+      className={`rounded-md bg-white/5 animate-pulse ${className}`}
       aria-hidden
       {...rest}
     />

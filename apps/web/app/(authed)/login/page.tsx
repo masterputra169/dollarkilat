@@ -20,10 +20,10 @@ export default function LoginPage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5 sm:px-10">
+      <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-4 sm:px-10 sm:py-5">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)]"
+          className="-ml-2 inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)]"
         >
           <ArrowLeft className="size-4" />
           Kembali
@@ -31,7 +31,7 @@ export default function LoginPage() {
         <Logo iconOnly className="sm:hidden" />
       </div>
 
-      <div className="relative flex flex-1 items-center justify-center px-6 pb-12 pt-4 sm:px-10">
+      <div className="relative flex flex-1 items-center justify-center px-5 pb-10 pt-4 sm:px-10 sm:pb-12">
         <div className="relative w-full max-w-sm">
           <div className="mb-8 flex flex-col items-center text-center">
             <Logo iconOnly className="mb-5" />

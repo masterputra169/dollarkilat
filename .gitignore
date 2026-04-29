@@ -60,3 +60,8 @@ yarn-error.log*
 # ── Claude Code per-user settings ────────────────────────────
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+
+# ── Playwright MCP scratch artifacts ─────────────────────────
+.playwright-mcp/
+ss/
+/*.png
