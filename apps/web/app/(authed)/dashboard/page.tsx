@@ -14,14 +14,12 @@ import {
   History,
   LogOut,
   QrCode,
-  Sparkles,
 } from "lucide-react";
 import type { User, UserSyncResponse } from "@dollarkilat/shared";
 import { api, ApiError } from "@/lib/api";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardLabel } from "@/components/ui/card";
-import { Pill } from "@/components/ui/pill";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function DashboardPage() {
@@ -126,16 +124,11 @@ export default function DashboardPage() {
 
       <div className="mx-auto w-full max-w-2xl space-y-4 px-5 py-5 sm:space-y-5 sm:px-8 sm:py-8">
         {/* greeting */}
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-[var(--color-fg-subtle)]">Selamat datang 👋</p>
-            <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-[var(--color-fg)]">
-              Dashboard
-            </h1>
-          </div>
-          <Pill tone="success" icon={<Sparkles className="size-3" />}>
-            5 tx gratis
-          </Pill>
+        <div>
+          <p className="text-sm text-[var(--color-fg-subtle)]">Selamat datang 👋</p>
+          <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-[var(--color-fg)]">
+            Dashboard
+          </h1>
         </div>
 
         {/* balance hero */}
@@ -235,7 +228,7 @@ export default function DashboardPage() {
               Belum ada transaksi
             </h3>
             <p className="mt-1.5 max-w-sm text-sm text-[var(--color-fg-muted)]">
-              Kirim USDC devnet ke alamat di atas untuk testing. Riwayat akan muncul
+              Kirim USDC ke alamat di atas untuk testing. Riwayat akan muncul
               di sini setelah Day 9.
             </p>
           </div>
