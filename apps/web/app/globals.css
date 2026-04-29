@@ -130,3 +130,80 @@ body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ───────────────────────────────────────────────────────
+   Background textures — subtle, additive, theme-aware
+   ─────────────────────────────────────────────────────── */
+
+/* Aurora: radial brand-tinted glow from top, very faint */
+.bg-aurora {
+  background:
+    radial-gradient(ellipse 70% 50% at 50% -10%, rgb(0 102 255 / 0.07), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 100% 110%, rgb(99 102 241 / 0.04), transparent 60%),
+    var(--bg);
+}
+@media (prefers-color-scheme: dark) {
+  .bg-aurora {
+    background:
+      radial-gradient(ellipse 70% 50% at 50% -10%, rgb(59 130 246 / 0.12), transparent 60%),
+      radial-gradient(ellipse 50% 40% at 100% 110%, rgb(99 102 241 / 0.08), transparent 60%),
+      var(--bg);
+  }
+}
+
+/* Grid: fine 40px graph, faint border lines */
+.bg-grid {
+  background-image:
+    linear-gradient(to right, var(--border-subtle) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--border-subtle) 1px, transparent 1px);
+  background-size: 40px 40px;
+  background-position: -1px -1px;
+}
+
+/* Dot pattern — alternative to grid */
+.bg-dots {
+  background-image: radial-gradient(var(--border) 1px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+
+/* Card gradient — diagonal sweep with brand tint */
+.bg-card-mesh {
+  background:
+    radial-gradient(circle at 100% 0%, rgb(0 102 255 / 0.06), transparent 50%),
+    radial-gradient(circle at 0% 100%, rgb(99 102 241 / 0.04), transparent 50%),
+    var(--bg-elevated);
+}
+@media (prefers-color-scheme: dark) {
+  .bg-card-mesh {
+    background:
+      radial-gradient(circle at 100% 0%, rgb(59 130 246 / 0.18), transparent 50%),
+      radial-gradient(circle at 0% 100%, rgb(99 102 241 / 0.10), transparent 50%),
+      var(--bg-elevated);
+  }
+}
+
+/* Mask gradient — fade edges of decorative bg layers */
+.mask-fade-y {
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 60%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 0%, black 60%, transparent 100%);
+}
+
+.mask-fade-radial {
+  -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+}
+
+/* Glow blob — soft circular brand-tinted glow for hero accents */
+.glow-blob {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(60px);
+  opacity: 0.4;
+  pointer-events: none;
+  z-index: -1;
+}
+@media (prefers-color-scheme: dark) {
+  .glow-blob {
+    opacity: 0.5;
+  }
+}

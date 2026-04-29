@@ -18,7 +18,18 @@ export default function Home() {
       </nav>
 
       {/* hero */}
-      <section className="mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center px-6 pb-20 pt-8 text-center sm:px-10 sm:pt-16">
+      <section className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center px-6 pb-20 pt-8 text-center sm:px-10 sm:pt-16">
+        {/* decorative grid + glow */}
+        <div
+          aria-hidden
+          className="bg-grid mask-fade-radial absolute inset-0 -z-10 opacity-60"
+        />
+        <span
+          aria-hidden
+          className="glow-blob left-1/2 top-12 size-[420px] -translate-x-1/2"
+          style={{ background: "radial-gradient(circle, var(--brand) 0%, transparent 70%)" }}
+        />
+
         <Pill tone="brand" icon={<Zap className="size-3" />}>
           Hackathon MVP · Solana Devnet
         </Pill>
@@ -68,9 +79,13 @@ export default function Home() {
       {/* how it works */}
       <section
         id="cara-kerja"
-        className="border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)]"
+        className="relative border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)]"
       >
-        <div className="mx-auto max-w-5xl px-6 py-20 sm:px-10">
+        <div
+          aria-hidden
+          className="bg-dots mask-fade-y absolute inset-0 opacity-40"
+        />
+        <div className="relative mx-auto max-w-5xl px-6 py-20 sm:px-10">
           <div className="mb-12 text-center">
             <p className="text-[10px] font-medium uppercase tracking-[0.12em] text-[var(--color-fg-subtle)]">
               Cara Kerja
