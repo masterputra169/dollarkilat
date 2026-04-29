@@ -135,18 +135,20 @@ body {
    Background textures — subtle, additive, theme-aware
    ─────────────────────────────────────────────────────── */
 
-/* Aurora: radial brand-tinted glow from top, very faint */
+/* Aurora: dual-glow gradient — adds tone variation without dominating */
 .bg-aurora {
   background:
-    radial-gradient(ellipse 70% 50% at 50% -10%, rgb(0 102 255 / 0.07), transparent 60%),
-    radial-gradient(ellipse 50% 40% at 100% 110%, rgb(99 102 241 / 0.04), transparent 60%),
+    radial-gradient(ellipse 80% 50% at 50% 0%, rgb(0 102 255 / 0.10), transparent 55%),
+    radial-gradient(ellipse 60% 40% at 90% 100%, rgb(99 102 241 / 0.06), transparent 55%),
+    radial-gradient(ellipse 40% 30% at 10% 60%, rgb(59 130 246 / 0.04), transparent 60%),
     var(--bg);
 }
 @media (prefers-color-scheme: dark) {
   .bg-aurora {
     background:
-      radial-gradient(ellipse 70% 50% at 50% -10%, rgb(59 130 246 / 0.12), transparent 60%),
-      radial-gradient(ellipse 50% 40% at 100% 110%, rgb(99 102 241 / 0.08), transparent 60%),
+      radial-gradient(ellipse 80% 50% at 50% 0%, rgb(59 130 246 / 0.15), transparent 55%),
+      radial-gradient(ellipse 60% 40% at 90% 100%, rgb(99 102 241 / 0.10), transparent 55%),
+      radial-gradient(ellipse 40% 30% at 10% 60%, rgb(34 211 238 / 0.06), transparent 60%),
       var(--bg);
   }
 }
@@ -193,17 +195,19 @@ body {
   mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
 }
 
-/* Glow blob — soft circular brand-tinted glow for hero accents */
+/* Glow blob — soft circular brand-tinted glow.
+   Use sparingly: small, blurred, contained inside cards or behind dense content. */
 .glow-blob {
   position: absolute;
   border-radius: 9999px;
-  filter: blur(60px);
-  opacity: 0.4;
+  filter: blur(80px);
+  opacity: 0.18;
   pointer-events: none;
-  z-index: -1;
+  z-index: 0;
+  mix-blend-mode: screen;
 }
 @media (prefers-color-scheme: dark) {
   .glow-blob {
-    opacity: 0.5;
+    opacity: 0.22;
   }
 }

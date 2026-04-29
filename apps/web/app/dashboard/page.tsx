@@ -140,11 +140,6 @@ export default function DashboardPage() {
 
         {/* balance hero */}
         <Card variant="elevated" className="bg-card-mesh relative overflow-hidden">
-          <span
-            aria-hidden
-            className="glow-blob -right-12 -top-12 size-48"
-            style={{ background: "radial-gradient(circle, var(--brand) 0%, transparent 70%)" }}
-          />
           <div className="relative px-6 pt-5 sm:px-8 sm:pt-6">
             <CardLabel>Saldo USDC</CardLabel>
             {syncing && !synced ? (

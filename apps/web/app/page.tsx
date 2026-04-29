@@ -19,15 +19,10 @@ export default function Home() {
 
       {/* hero */}
       <section className="relative mx-auto flex w-full max-w-6xl flex-1 flex-col items-center justify-center px-6 pb-20 pt-8 text-center sm:px-10 sm:pt-16">
-        {/* decorative grid + glow */}
+        {/* decorative grid only — aurora at body provides color tone */}
         <div
           aria-hidden
-          className="bg-grid mask-fade-radial absolute inset-0 -z-10 opacity-60"
-        />
-        <span
-          aria-hidden
-          className="glow-blob left-1/2 top-12 size-[420px] -translate-x-1/2"
-          style={{ background: "radial-gradient(circle, var(--brand) 0%, transparent 70%)" }}
+          className="bg-grid mask-fade-radial pointer-events-none absolute inset-0 -z-10 opacity-50"
         />
 
         <Pill tone="brand" icon={<Zap className="size-3" />}>
