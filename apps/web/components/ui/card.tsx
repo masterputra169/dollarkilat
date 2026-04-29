@@ -6,11 +6,11 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 
 const variants: Record<NonNullable<CardProps["variant"]>, string> = {
   default:
-    "bg-[--color-bg-elevated] border border-[--color-border] shadow-[--shadow-sm]",
+    "bg-[var(--color-bg-elevated)] border border-[var(--color-border)] shadow-[var(--shadow-sm)]",
   elevated:
-    "bg-[--color-bg-elevated] border border-[--color-border-subtle] shadow-[--shadow-md]",
-  outline: "bg-transparent border border-[--color-border]",
-  subtle: "bg-[--color-bg-subtle] border border-transparent",
+    "bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)] shadow-[var(--shadow-md)]",
+  outline: "bg-transparent border border-[var(--color-border)]",
+  subtle: "bg-[var(--color-bg-subtle)] border border-transparent",
 };
 
 export function Card({
@@ -37,7 +37,7 @@ interface CardLabelProps {
 export function CardLabel({ children, className = "" }: CardLabelProps) {
   return (
     <p
-      className={`text-[10px] uppercase tracking-[0.12em] text-[--color-fg-subtle] font-medium ${className}`}
+      className={`text-[10px] uppercase tracking-[0.12em] text-[var(--color-fg-subtle)] font-medium ${className}`}
     >
       {children}
     </p>

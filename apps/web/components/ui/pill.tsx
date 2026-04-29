@@ -9,9 +9,9 @@ interface PillProps extends HTMLAttributes<HTMLSpanElement> {
 
 const tones: Record<Tone, string> = {
   neutral:
-    "bg-[--color-bg-subtle] text-[--color-fg-muted] border-[--color-border]",
+    "bg-[var(--color-bg-subtle)] text-[var(--color-fg-muted)] border-[var(--color-border)]",
   brand:
-    "bg-[--color-brand-soft] text-[--color-brand-soft-fg] border-transparent",
+    "bg-[var(--color-brand-soft)] text-[var(--color-brand-soft-fg)] border-transparent",
   success: "bg-emerald-50 text-emerald-700 border-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-900/50",
   warning: "bg-amber-50 text-amber-700 border-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900/50",
   danger: "bg-red-50 text-red-700 border-red-100 dark:bg-red-950/40 dark:text-red-300 dark:border-red-900/50",

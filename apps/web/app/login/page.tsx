@@ -23,7 +23,7 @@ export default function LoginPage() {
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-5 sm:px-10">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm font-medium text-[--color-fg-muted] transition-colors hover:text-[--color-fg]"
+          className="inline-flex items-center gap-1.5 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)]"
         >
           <ArrowLeft className="size-4" />
           Kembali
@@ -35,10 +35,10 @@ export default function LoginPage() {
         <div className="w-full max-w-sm">
           <div className="mb-8 flex flex-col items-center text-center">
             <Logo iconOnly className="mb-5" />
-            <h1 className="text-3xl font-semibold tracking-tight text-[--color-fg]">
+            <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-fg)]">
               Masuk
             </h1>
-            <p className="mt-2 text-sm text-[--color-fg-muted]">
+            <p className="mt-2 text-sm text-[var(--color-fg-muted)]">
               Wallet Solana otomatis dibuat saat signup. Tanpa seed phrase.
             </p>
           </div>
@@ -55,22 +55,22 @@ export default function LoginPage() {
             {ready ? "Masuk dengan Email" : "Memuat"}
           </Button>
 
-          <p className="mt-5 text-center text-xs leading-relaxed text-[--color-fg-subtle]">
+          <p className="mt-5 text-center text-xs leading-relaxed text-[var(--color-fg-subtle)]">
             Dengan masuk, kamu setuju dengan{" "}
             <Link
               href="/terms"
-              className="text-[--color-fg-muted] underline-offset-2 hover:text-[--color-fg] hover:underline"
+              className="text-[var(--color-fg-muted)] underline-offset-2 hover:text-[var(--color-fg)] hover:underline"
             >
               Syarat Layanan
             </Link>
             .
           </p>
 
-          <div className="mt-10 flex items-start gap-2.5 rounded-xl border border-[--color-border] bg-[--color-bg-elevated] p-4">
-            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[--color-brand]" />
-            <p className="text-xs leading-relaxed text-[--color-fg-muted]">
+          <div className="mt-10 flex items-start gap-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-4">
+            <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[var(--color-brand)]" />
+            <p className="text-xs leading-relaxed text-[var(--color-fg-muted)]">
               Saldo USDC kamu tetap di wallet kamu sendiri. Kami{" "}
-              <span className="font-medium text-[--color-fg]">bukan custodian</span>
+              <span className="font-medium text-[var(--color-fg)]">bukan custodian</span>
               {" "}— transit only saat kamu authorize pembayaran.
             </p>
           </div>

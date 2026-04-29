@@ -14,16 +14,16 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const base =
-  "inline-flex items-center justify-center gap-2 font-medium rounded-full transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[--color-ring] focus-visible:ring-offset-2 focus-visible:ring-offset-[--color-bg] cursor-pointer";
+  "inline-flex items-center justify-center gap-2 font-medium rounded-full transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-ring)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg)] cursor-pointer";
 
 const variants: Record<Variant, string> = {
   primary:
-    "bg-[--color-brand] text-[--color-brand-fg] hover:bg-[--color-brand-hover] shadow-sm",
+    "bg-[var(--color-brand)] text-[var(--color-brand-fg)] hover:bg-[var(--color-brand-hover)] shadow-sm",
   secondary:
-    "bg-[--color-bg-elevated] text-[--color-fg] border border-[--color-border] hover:bg-[--color-bg-subtle]",
+    "bg-[var(--color-bg-elevated)] text-[var(--color-fg)] border border-[var(--color-border)] hover:bg-[var(--color-bg-subtle)]",
   ghost:
-    "bg-transparent text-[--color-fg-muted] hover:bg-[--color-bg-subtle] hover:text-[--color-fg]",
-  danger: "bg-[--color-danger] text-white hover:opacity-90 shadow-sm",
+    "bg-transparent text-[var(--color-fg-muted)] hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]",
+  danger: "bg-[var(--color-danger)] text-white hover:opacity-90 shadow-sm",
 };
 
 const sizes: Record<Size, string> = {

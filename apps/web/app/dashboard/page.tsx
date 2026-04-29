@@ -80,7 +80,7 @@ export default function DashboardPage() {
   if (!ready || !authenticated) {
     return (
       <main className="flex flex-1 items-center justify-center">
-        <div className="size-6 rounded-full border-2 border-[--color-fg-subtle] border-t-transparent animate-spin" />
+        <div className="size-6 rounded-full border-2 border-[var(--color-fg-subtle)] border-t-transparent animate-spin" />
       </main>
     );
   }
@@ -103,12 +103,12 @@ export default function DashboardPage() {
   return (
     <main className="flex flex-1 flex-col">
       {/* sticky header */}
-      <header className="sticky top-0 z-10 border-b border-[--color-border-subtle] bg-[--color-bg]/80 backdrop-blur-md">
+      <header className="sticky top-0 z-10 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg)]/80 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-6 py-3.5 sm:px-8">
           <Logo />
           <div className="flex items-center gap-2">
             {email && (
-              <span className="hidden max-w-[180px] truncate text-xs text-[--color-fg-muted] sm:inline">
+              <span className="hidden max-w-[180px] truncate text-xs text-[var(--color-fg-muted)] sm:inline">
                 {email}
               </span>
             )}
@@ -128,8 +128,8 @@ export default function DashboardPage() {
         {/* greeting */}
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-sm text-[--color-fg-subtle]">Selamat datang 👋</p>
-            <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-[--color-fg]">
+            <p className="text-sm text-[var(--color-fg-subtle)]">Selamat datang 👋</p>
+            <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-[var(--color-fg)]">
               Dashboard
             </h1>
           </div>
@@ -145,15 +145,15 @@ export default function DashboardPage() {
             {syncing && !synced ? (
               <Skeleton className="mt-3 h-12 w-40" />
             ) : (
-              <p className="mt-2 text-5xl font-semibold tabular-nums tracking-tight text-[--color-fg] sm:text-6xl">
-                0<span className="text-[--color-fg-subtle]">.00</span>
+              <p className="mt-2 text-5xl font-semibold tabular-nums tracking-tight text-[var(--color-fg)] sm:text-6xl">
+                0<span className="text-[var(--color-fg-subtle)]">.00</span>
               </p>
             )}
-            <p className="mt-2 text-sm text-[--color-fg-muted]">
-              ≈ Rp 0 <span className="text-[--color-fg-faint]">(estimasi)</span>
+            <p className="mt-2 text-sm text-[var(--color-fg-muted)]">
+              ≈ Rp 0 <span className="text-[var(--color-fg-faint)]">(estimasi)</span>
             </p>
           </div>
-          <div className="mt-5 flex items-center gap-2 border-t border-[--color-border-subtle] bg-[--color-bg-subtle] px-6 py-3 text-xs text-[--color-fg-muted] sm:px-8">
+          <div className="mt-5 flex items-center gap-2 border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)] px-6 py-3 text-xs text-[var(--color-fg-muted)] sm:px-8">
             <Clock className="size-3.5" />
             Saldo live tersedia di Day 3 — Helius RPC integrasi
           </div>
@@ -164,7 +164,7 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between p-5 sm:p-6">
             <div className="min-w-0 flex-1">
               <CardLabel>Alamat Solana</CardLabel>
-              <p className="mt-2 truncate font-mono text-sm text-[--color-fg]">
+              <p className="mt-2 truncate font-mono text-sm text-[var(--color-fg)]">
                 {solanaAddress ? (
                   <>
                     <span className="hidden sm:inline">{solanaAddress}</span>
@@ -186,7 +186,7 @@ export default function DashboardPage() {
                 aria-label="Salin alamat"
                 leftIcon={
                   copied ? (
-                    <Check className="size-3.5 text-[--color-success]" />
+                    <Check className="size-3.5 text-[var(--color-success)]" />
                   ) : (
                     <Copy className="size-3.5" />
                   )
@@ -225,13 +225,13 @@ export default function DashboardPage() {
         {/* empty transactions */}
         <Card variant="outline">
           <div className="flex flex-col items-center px-6 py-10 text-center sm:py-12">
-            <div className="flex size-12 items-center justify-center rounded-full bg-[--color-bg-subtle] text-[--color-fg-subtle]">
+            <div className="flex size-12 items-center justify-center rounded-full bg-[var(--color-bg-subtle)] text-[var(--color-fg-subtle)]">
               <ArrowUpFromLine className="size-5" />
             </div>
-            <h3 className="mt-4 text-base font-semibold text-[--color-fg]">
+            <h3 className="mt-4 text-base font-semibold text-[var(--color-fg)]">
               Belum ada transaksi
             </h3>
-            <p className="mt-1.5 max-w-sm text-sm text-[--color-fg-muted]">
+            <p className="mt-1.5 max-w-sm text-sm text-[var(--color-fg-muted)]">
               Kirim USDC devnet ke alamat di atas untuk testing. Riwayat akan muncul
               di sini setelah Day 9.
             </p>
@@ -257,14 +257,14 @@ function ActionTile({
     <button
       type="button"
       disabled={disabled}
-      className="group relative flex flex-col items-center gap-2 rounded-2xl border border-[--color-border] bg-[--color-bg-elevated] px-3 py-4 text-[--color-fg] transition-all duration-150 hover:border-[--color-border-subtle] hover:bg-[--color-bg-subtle] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-[--color-bg-elevated] sm:py-5"
+      className="group relative flex flex-col items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3 py-4 text-[var(--color-fg)] transition-all duration-150 hover:border-[var(--color-border-subtle)] hover:bg-[var(--color-bg-subtle)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-[var(--color-bg-elevated)] sm:py-5"
     >
-      <span className="flex size-10 items-center justify-center rounded-full bg-[--color-brand-soft] text-[--color-brand-soft-fg] transition-transform duration-150 group-hover:scale-105">
+      <span className="flex size-10 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-soft-fg)] transition-transform duration-150 group-hover:scale-105">
         {icon}
       </span>
       <span className="text-sm font-medium">{label}</span>
       {disabled && (
-        <span className="text-[10px] font-medium uppercase tracking-wider text-[--color-fg-faint]">
+        <span className="text-[10px] font-medium uppercase tracking-wider text-[var(--color-fg-faint)]">
           {badge}
         </span>
       )}
