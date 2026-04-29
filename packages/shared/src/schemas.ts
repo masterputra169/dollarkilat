@@ -4,6 +4,29 @@ import {
   MIN_PAYMENT_IDR,
 } from "./constants.js";
 
+// ── User sync ──────────────────────────────────────────────────
+// Frontend POST /users/sync request body. Backend pulls real email +
+// solana_address from Privy via verifyAuthToken(token) → getUser(userId).
+// Body kept minimal so we never trust client-provided identity.
+export const UserSyncRequestSchema = z.object({}).strict();
+export type UserSyncRequest = z.infer<typeof UserSyncRequestSchema>;
+
+export const UserSchema = z.object({
+  id: z.string().uuid(),
+  privy_id: z.string().min(1),
+  email: z.string().email().nullable(),
+  solana_address: z.string().min(32).nullable(),
+  created_at: z.string().datetime(),
+  updated_at: z.string().datetime(),
+});
+export type User = z.infer<typeof UserSchema>;
+
+export const UserSyncResponseSchema = z.object({
+  user: UserSchema,
+  is_new: z.boolean(),
+});
+export type UserSyncResponse = z.infer<typeof UserSyncResponseSchema>;
+
 // ── QRIS quote ─────────────────────────────────────────────────
 export const QuoteRequestSchema = z.object({
   qris_string: z.string().min(20).max(500),

@@ -57,29 +57,29 @@ function loadEnv(): Env {
       "⚠️  Running in DEV with missing env vars — backend handlers will fail until configured.",
     );
     return EnvSchema.parse({
-      PORT: process.env.PORT ?? "8787",
+      PORT: process.env.PORT || "8787",
       NODE_ENV: "development",
-      WEB_ORIGIN: process.env.WEB_ORIGIN ?? "http://localhost:3000",
-      PRIVY_APP_ID: process.env.PRIVY_APP_ID ?? "DEV_UNSET",
-      PRIVY_APP_SECRET: process.env.PRIVY_APP_SECRET ?? "DEV_UNSET",
+      WEB_ORIGIN: process.env.WEB_ORIGIN || "http://localhost:3000",
+      PRIVY_APP_ID: process.env.PRIVY_APP_ID || "DEV_UNSET",
+      PRIVY_APP_SECRET: process.env.PRIVY_APP_SECRET || "DEV_UNSET",
       SUPABASE_URL:
-        process.env.SUPABASE_URL ?? "https://dev-unset.supabase.co",
+        process.env.SUPABASE_URL || "https://dev-unset.supabase.co",
       SUPABASE_SERVICE_ROLE_KEY:
-        process.env.SUPABASE_SERVICE_ROLE_KEY ?? "DEV_UNSET",
+        process.env.SUPABASE_SERVICE_ROLE_KEY || "DEV_UNSET",
       HELIUS_RPC_URL:
-        process.env.HELIUS_RPC_URL ?? "https://api.devnet.solana.com",
+        process.env.HELIUS_RPC_URL || "https://api.devnet.solana.com",
       SOLANA_NETWORK:
-        (process.env.SOLANA_NETWORK as "devnet" | "mainnet-beta") ?? "devnet",
+        (process.env.SOLANA_NETWORK as "devnet" | "mainnet-beta") || "devnet",
       USDC_MINT:
-        process.env.USDC_MINT ??
+        process.env.USDC_MINT ||
         "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU",
       FEE_PAYER_PRIVATE_KEY:
-        process.env.FEE_PAYER_PRIVATE_KEY ?? "DEV_UNSET",
+        process.env.FEE_PAYER_PRIVATE_KEY || "DEV_UNSET",
       TREASURY_USDC_ATA:
-        process.env.TREASURY_USDC_ATA ?? "11111111111111111111111111111111",
+        process.env.TREASURY_USDC_ATA || "11111111111111111111111111111111",
       COINGECKO_API_KEY: process.env.COINGECKO_API_KEY,
       PJP_PARTNER:
-        (process.env.PJP_PARTNER as "mock" | "doku" | "flip") ?? "mock",
+        (process.env.PJP_PARTNER as "mock" | "doku" | "flip") || "mock",
       PJP_API_KEY: process.env.PJP_API_KEY,
       PJP_API_SECRET: process.env.PJP_API_SECRET,
       PJP_WEBHOOK_SECRET: process.env.PJP_WEBHOOK_SECRET,

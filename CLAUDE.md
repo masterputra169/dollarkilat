@@ -223,12 +223,17 @@ Jangan suggest library baru tanpa alasan kuat. Stack sudah locked untuk consiste
 
 > Update this section as you build.
 
-- **Day:** Day 1 (2026-04-27)
-- **Phase:** Foundation bootstrap
-- **Last completed:** Next 16.2 + Tailwind v4 bootstrap, Serwist scaffold, manifest, fee payer generator script, .env.example, _v2-ideas.md
-- **Currently working on:** `npm install` foundational deps (Privy, @solana/kit, Supabase, Serwist, qr-scanner, sonner, bignumber.js, zod, tweetnacl, bs58)
-- **Blockers:** None
-- **Next:** Day 2 — Auth flow + embedded wallet (Privy integration, sync user ke Supabase `users` table)
+- **Day:** Day 2 (2026-04-29)
+- **Phase:** Auth + embedded wallet
+- **Last completed:**
+  - Privy `<Providers>` (Solana embedded, `walletChainType: solana-only`, `createOnLogin: all-users`)
+  - `/login` page (Privy modal trigger) + `/dashboard` (auto users/sync, address copy)
+  - Backend: `POST /users/sync` + `GET /users/me` with Privy `verifyAuthToken` middleware
+  - Supabase `users` table migration (`apps/api/supabase/migrations/0001_users.sql`) + RLS lock
+  - Shared `User` schema/type, `api()` fetch wrapper, `getSupabase()` browser client
+- **Currently working on:** Manual setup — fill `apps/web/.env.local` + `apps/api/.env.local`, run migration in Supabase SQL Editor, then end-to-end test login → wallet address sync
+- **Blockers:** None (waiting on credentials + migration apply)
+- **Next:** Day 3 — Dashboard balance display (USDC on-chain via Helius RPC, IDR equivalent via CoinGecko, sponsored counter, format Rupiah)
 
 ---
 

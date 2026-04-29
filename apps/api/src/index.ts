@@ -10,6 +10,7 @@ import { sponsorTx } from "./routes/sponsor-tx.js";
 import { consent } from "./routes/consent.js";
 import { webhooks } from "./routes/webhooks.js";
 import { balance } from "./routes/balance.js";
+import { users } from "./routes/users.js";
 
 const app = new Hono();
 
@@ -27,6 +28,7 @@ app.use(
 );
 
 app.route("/", health);
+app.route("/users", users);
 app.route("/qris", qris);
 app.route("/sponsor-tx", sponsorTx);
 app.route("/consent", consent);

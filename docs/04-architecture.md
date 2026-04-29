@@ -84,6 +84,136 @@ Treasury USDC → PFAK customer account → IDR proceeds
 
 ---
 
+## Innovation Points (yang bedain dollarkilat dari "another crypto-to-QRIS bridge")
+
+Tiga inovasi UX di flow ini bukan detail teknis kosmetik — ini **the entire selling point** dari project. Setiap kali ada diagram alur, ketiganya harus visible secara eksplisit.
+
+### 1. Hybrid Signing Mode (delegated atau biometric)
+- **Delegated mode (one-tap):** Backend sign atas nama user via Privy delegated action — *no popup*. Latency ~400ms.
+- **Biometric mode:** Popup Privy muncul, user authorize dengan FaceID/fingerprint. Latency ~800ms.
+- **Auto-switching rule:** Amount ≤ Rp 500K + delegated consent aktif → delegated. Amount > Rp 500K atau "Mode Aman" → biometric.
+- **Why this matters:** Tanpa delegated mode, setiap transaksi popup wallet. Itu *sama sekali tidak Apple Pay-class*. Delegated mode adalah bagaimana kita hit "scan → tap → done" UX.
+
+### 2. Sponsored Gas (fee payer)
+- User wallet **tidak perlu pegang SOL untuk gas.** Backend co-sign sebagai fee payer, perusahaan yang bayar SOL.
+- Anti-abuse layer: rate limit per user/IP, validate-tx (whitelist instructions), atomic quota di DB.
+- **Why this matters:** Tanpa fee payer, user harus beli SOL dulu sebelum bisa bayar QRIS pertama. Friction ini saja akan membunuh akuisisi user. Dengan fee payer, onboarding mulus dari signup → langsung bayar.
+
+### 3. Optimistic UI Cut-off
+- Frontend tampilkan "Sukses ✅" **setelah Solana confirmed** (~1.6 detik), bukan setelah PJP webhook (~3-15 detik).
+- PJP settlement berlanjut async di background. Kalau gagal (~0.1-1%): auto-refund USDC ke user wallet + push notif.
+- **Why this matters:** Hit target latency p50 ≤ 2 detik dan bikin app *feel* native-fast. PJP latency variable di luar kendali kita — kalau user nunggu sampai webhook, perceived performance jelek meskipun teknis benar.
+
+---
+
+## Visual Flowchart: QRIS Payment Flow v3.0
+
+> Diagram ini lebih lengkap dari flowchart linear sederhana — tonjolkan 3 innovation points di atas.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    DIAGRAM ALIR SISTEM v3.0                         │
+│              (Hybrid Mode + Sponsored Gas + Optimistic UI)          │
+└─────────────────────────────────────────────────────────────────────┘
+
+[📱 USER (Budi)]
+   │
+   │ 1. Buka app, scan QRIS fisik di kasir
+   ▼
+[💻 FRONTEND (apps/web)]
+   │
+   │ 2. Parse EMVCo TLV → merchant + amount IDR
+   │ 3. POST /qris/quote (parallel dengan check balance onchain)
+   ▼
+[⚙️ BACKEND (apps/api)] ◄── Oracle (CoinGecko + Pyth)
+   │
+   │ 4. Hitung USDC needed, simpan quote_id 30s
+   │ 5. Return quote estimasi (1 USDC + sponsored gas)
+   ▼
+[💻 FRONTEND]
+   │
+   │ 6. Cek delegated consent + amount vs policy:
+   │    │
+   │    ├── DELEGATED MODE ──┐    Amount ≤ Rp 500K + consent aktif
+   │    │   (no popup)       │    → auto-confirm, skip ke step 8
+   │    │                    │
+   │    └── BIOMETRIC MODE ──┤    Amount > Rp 500K atau Mode Aman
+   │        (popup Privy)    │    → user FaceID/fingerprint
+   │                         │
+   │ 7. User confirm ────────┘
+   │ 8. POST /qris/pay { quote_id, mode }
+   ▼
+[⚙️ BACKEND]
+   │
+   │ 9. Validate (auth, rate limit, quota, quote validity)
+   │ 10. Build Solana SPL transfer tx
+   │ 11. Sign user side:
+   │     ├─ Delegated: privy.walletApi.solana.signTransaction (server)
+   │     └─ Biometric: serialize ke FE → FE sign → return ke BE
+   │
+   │ ╔═══════════════════════════════════════════════╗
+   │ ║ 12. CO-SIGN sebagai FEE PAYER (sponsored gas) ║ ◄── INNOVATION
+   │ ╚═══════════════════════════════════════════════╝
+   │
+   │ 13. Submit ke Solana RPC, wait 'confirmed'
+   ▼
+[⛓️ SOLANA BLOCKCHAIN]
+   │
+   │ 14. USDC: user wallet → treasury USDC ATA
+   │     Signature confirmed, USDC sudah di treasury
+   ▼
+[⚙️ BACKEND]
+   │
+   │ 15. UPDATE status='solana_confirmed', sponsored_tx_used++ (atomic)
+   │
+═══╪═══════════════════════════════════════════════════════════════════
+   │                                                                   
+   │   ◄── OPTIMISTIC UI CUT-OFF (~1.6 detik) ── INNOVATION ──         
+   │                                                                   
+   │   Frontend tampilkan "Sukses ✅" DI SINI                          
+   │   Settlement merchant berlanjut async di background                
+   │                                                                   
+═══╪═══════════════════════════════════════════════════════════════════
+   │
+   │ 16. Trigger PJP partner API (DOKU QRIS Issuer)
+   │     idempotency_key = transaction_id
+   ▼
+[🏦 PJP PARTNER (DOKU/Flip — sandbox/production)]
+   │
+   │ 17. Eksekusi QRIS payment via QRIS switch network
+   │ 18. Settlement IDR ke rekening merchant (per BI ≤ 15 menit)
+   ▼
+[🏪 MERCHANT (Kedai Kopi ABC)]
+   │
+   │ ✓ Menerima Rp 15.000 di rekening
+   │
+   │ 19. PJP webhook callback ──┐
+   ▼                            │
+[⚙️ BACKEND] ◄──────────────────┘
+   │
+   │ 20. UPDATE status='completed', deduct idr_float_ledger (outbound)
+   │ 21. Supabase realtime push (background — user udah lihat sukses)
+   ▼
+[📱 USER] (notif "Pembayaran ke Kedai Kopi ABC: completed")
+
+═══════════════════════════════════════════════════════════════════════
+EDGE CASE: Settlement Failed (~0.1-1% production, 0% mock demo)
+═══════════════════════════════════════════════════════════════════════
+   PJP webhook return failure → status='failed_settlement'
+   → Auto-refund tx: treasury USDC ATA → user wallet
+   → Push notif: "Pembayaran refunded — silakan coba lagi"
+   → User gak rugi (USDC kembali, gas dibayar perusahaan)
+═══════════════════════════════════════════════════════════════════════
+```
+
+### Cara baca diagram
+
+- **Kolom kiri** (📱 → 💻 → ⚙️ → ⛓️ → 🏦 → 🏪): perjalanan request top-down
+- **Garis dobel `═══`**: optimistic UI cut-off — pemisah antara apa yang user *lihat* (atas) dan apa yang terjadi di belakang layar (bawah)
+- **Box dobel `╔═╗`**: innovation point yang harus dipertahankan — jangan refactor jadi user-pays-gas atau popup-every-time tanpa tahu konsekuensinya
+
+---
+
 ## Database Schema (Supabase Postgres)
 
 ```sql
@@ -448,6 +578,35 @@ RETURNING sponsored_tx_used;
 - Retry logic dengan exponential backoff (3 retries: 2s, 4s, 8s)
 - Fallback ke secondary partner jika ada
 - Untuk demo: mock service tidak akan down
+
+### PJP partner access status (Update 2026-04-29)
+
+> Konteks dari riset partnership outreach. Critical untuk go/no-go decision sebelum production.
+
+**DOKU (PJP Tingkat 1):**
+- ✅ Account self-serve registered (`dollarkilat`, BRN-0250-1777354096880)
+- ✅ Sub Account API + Embedded Wallet API endpoints documented
+- ⚠️ QRIS Acquirer: docs eksplisit menyatakan *"QRIS not supported in DOKU Sandbox, strictly limited to live (production) environment"*
+- ⚠️ QRIS Issuer SNAP API (`qr-mpm-decode`, `qr-mpm-payment`): endpoint terdaftar di developer docs dengan base `api-sandbox.doku.com`, **tapi accessibility untuk self-serve credential belum dikonfirmasi empiris**
+- 🔬 Action item: tes signature SHA256withRSA + HMAC_SHA512 → hit token endpoint → hit `qr-mpm-decode` dengan QR sample. Response 200/403/401 menentukan jalur lanjutan.
+
+**Paydia (PJP Tingkat 1):**
+- 🟢 Eksplisit jualan "QRIS MPM Issuer" sebagai service tier terpisah di docs publik (`docs-snap.paydia.id`)
+- 🟢 Direct contact channel (WhatsApp + email), kemungkinan responsif untuk early-stage developer
+- 🟡 Skala lebih kecil (~5K merchant) → tier-3 di market, butuh defensive answer di pitch
+- 🟡 Belum diverifikasi: minimum volume commitment, setup fee, sandbox self-serve access
+
+**Recommended dual-track outreach:**
+1. **Track A (technical, fast):** Generate RSA keypair → upload public key ke DOKU dashboard → tes signature → hit `qr-mpm-decode` sandbox. Hasilnya empiris dalam 1 hari.
+2. **Track B (commercial, parallel):** Email/WhatsApp Paydia BD dengan complementary pitch (USDC bridge × QRIS Issuer access). Response time biasanya 1-2 minggu.
+
+Decision tree:
+- Track A returns 200 → DOKU primary, lanjut implementasi `lib/pjp/doku.ts`
+- Track A returns 403 (service not enabled) → live chat support DOKU minta enable, kalau ditolak → Paydia primary
+- Track A returns 401 (contract required) → DOKU = roadmap v2, Paydia = MVP primary
+- Semua reject → mock service untuk hackathon submission, partnership negotiation post-submission
+
+**Untuk hackathon: tetap mock service.** Outreach paralel tidak block submission.
 
 ---
 
