@@ -223,17 +223,26 @@ Jangan suggest library baru tanpa alasan kuat. Stack sudah locked untuk consiste
 
 > Update this section as you build.
 
-- **Day:** Day 2 (2026-04-29)
-- **Phase:** Auth + embedded wallet
-- **Last completed:**
-  - Privy `<Providers>` (Solana embedded, `walletChainType: solana-only`, `createOnLogin: all-users`)
-  - `/login` page (Privy modal trigger) + `/dashboard` (auto users/sync, address copy)
-  - Backend: `POST /users/sync` + `GET /users/me` with Privy `verifyAuthToken` middleware
-  - Supabase `users` table migration (`apps/api/supabase/migrations/0001_users.sql`) + RLS lock
-  - Shared `User` schema/type, `api()` fetch wrapper, `getSupabase()` browser client
-- **Currently working on:** Manual setup — fill `apps/web/.env.local` + `apps/api/.env.local`, run migration in Supabase SQL Editor, then end-to-end test login → wallet address sync
-- **Blockers:** None (waiting on credentials + migration apply)
-- **Next:** Day 3 — Dashboard balance display (USDC on-chain via Helius RPC, IDR equivalent via CoinGecko, sponsored counter, format Rupiah)
+- **Day:** Day 4 done (2026-04-30) → Day 5 next
+- **Phase:** Onboarding + receive flow + PWA install — complete
+- **Last completed (Day 3):**
+  - Backend `lib/{solana,oracle}.ts` — Helius RPC USDC balance + CoinGecko USDC→IDR (cache 60s)
+  - Routes `/balance/:address` (auth-gated) + `/rate/usdc-idr` (public)
+  - Frontend `lib/format.ts` — Rupiah/USDC formatters via BigNumber + Intl
+  - Dashboard polls balance+rate every 30s, manual refresh, mono tabular nums, smart empty states
+- **Last completed (Day 4):**
+  - Migrasi `0002_consents.sql` — `delegated_actions_consents` (append-only audit log)
+  - Routes `POST/GET/DELETE /consent/delegated` — verify Privy delegation flag sebelum write row
+  - `/onboarding/consent` (One-Tap via `useSessionSigners` + Mode Aman) — idempotent on duplicate signers
+  - `/receive` — address + QR (qrcode lib SVG output) + copy/share API
+  - PWA: `<InstallPrompt />` bottom sheet + `<InstallButton />` (landing nav + dashboard header) dengan Brave/iOS/Chromium-aware tooltip fallback
+  - PNG manifest icons 192/512 + maskable (generated dari SVG via sharp)
+  - `scripts/setup-treasury.ts` — idempotent ATA creation
+  - Privy migration: `useDelegatedActions` → `useSessionSigners` (TEE-based, env: `NEXT_PUBLIC_PRIVY_SIGNER_ID`)
+  - Tested E2E di Brave + Chrome: install dialog native muncul saat klik tombol header
+- **Currently working on:** —
+- **Blockers:** None
+- **Next:** Day 5 — QRIS decoder (`lib/qris-parser.ts` EMVCo TLV) + camera scanner + PJP mock service
 
 ---
 

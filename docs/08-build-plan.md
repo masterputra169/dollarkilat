@@ -52,34 +52,50 @@
 
 ---
 
-### Day 3 — Dashboard + Balance Display
+### Day 3 — Dashboard + Balance Display ✅ (2026-04-30)
 **Target:** UI dashboard, fetch USDC balance ONCHAIN, show IDR equivalent.
 
-- [ ] Layout `app/(dashboard)/page.tsx` dengan shadcn cards
-- [ ] Build `lib/solana.ts` — function `getUSDCBalance(address)` via Helius RPC
-- [ ] Build `lib/oracle.ts` — function `getUSDCToIDRRate()` via CoinGecko (+ Pyth fallback)
-- [ ] Display balance USDC + equivalent IDR
-- [ ] Display sponsored tx counter ("5 tx gratis tersisa")
-- [ ] Empty state: "Belum ada USDC. Klik Receive untuk dapat alamat deposit."
-- [ ] Mobile-first layout (test di Chrome DevTools mobile view)
-- [ ] Bahasa Indonesia text
+- [x] Layout `app/(authed)/dashboard/page.tsx` (shadcn-style cards via lokal UI lib)
+- [x] Build `apps/api/src/lib/solana.ts` — `getUSDCBalance(address)` via Helius RPC
+- [x] Build `apps/api/src/lib/oracle.ts` — `getUSDCToIDRRate()` via CoinGecko (cache 60s in-memory)
+- [x] `routes/balance.ts` (auth-gated) + `routes/rate.ts` (public) + shared `RateResponse` schema
+- [x] Display balance USDC + equivalent IDR — polling 30s, manual refresh, mono tabular nums
+- [x] Empty state cerdas — "Belum ada USDC" kalau balance=0, "Belum ada transaksi" kalau ada
+- [x] Mobile-first layout
+- [x] Bahasa Indonesia text
+- [x] `lib/format.ts` — `formatRupiah` / `formatUSDC` / `usdcToIdr` (BigNumber, no float)
 
-**Done state:** Dashboard live data, balance update saat refresh, format Rupiah benar.
+**Skipped (intentional):**
+- ~~Sponsored tx counter "5 tx gratis tersisa"~~ — dropped per UX decision: sponsor tx
+  sekarang implicit via Privy dashboard, gak diiklankan sebagai badge.
+- ~~Pyth fallback~~ — defer; CoinGecko free tier + 60s cache cukup untuk MVP, USDC↔IDR
+  volatilitas rendah dalam window 60s.
+
+**Done state:** Dashboard live data, balance update saat refresh, format Rupiah benar. ✅
 
 ---
 
-### Day 4 — Delegated Actions Consent + Receive Flow
+### Day 4 — Delegated Actions Consent + Receive Flow ✅ (2026-04-30)
 **Target:** Onboarding consent screen + receive flow jalan E2E.
 
-- [ ] Build `/onboarding/consent` page (3 cards: One-Tap default, Mode Aman opsi)
-- [ ] Build `POST /api/consent/delegated` endpoint
-- [ ] Insert ke `delegated_actions_consents` tabel + call Privy delegated action API
-- [ ] Build `/receive` page (show address + QR code)
-- [ ] Setup treasury USDC ATA — `scripts/setup-treasury.ts`
-- [ ] Test: kirim USDC dari wallet lain ke user → balance update di dashboard
-- [ ] Implement `<InstallPrompt />` component (lihat `05-pwa-guide.md`)
+- [x] Build `(authed)/onboarding/consent/page.tsx` — 2 pilihan (One-Tap + Mode Aman)
+- [x] Build `POST /consent/delegated` endpoint + `GET` (read active) + `DELETE` (revoke)
+- [x] Migrasi `0002_consents.sql` — `delegated_actions_consents` table (append-only audit log)
+- [x] Verify Privy `linkedAccounts.delegated=true` sebelum tulis policy row
+- [x] Build `(authed)/receive/page.tsx` — address + QR code (qrcode lib, SVG output) + share API
+- [x] Setup treasury USDC ATA — `apps/api/scripts/setup-treasury.ts` (idempotent via `getCreateAssociatedTokenIdempotent`)
+- [x] `<InstallPrompt />` bottom sheet + `<InstallButton />` di header (landing + dashboard)
+- [x] PWA installability: PNG icons (192/512 + maskable) generated dari SVG via `sharp`
+- [x] Test E2E: signup → consent → receive QR → kirim USDC devnet → balance update di dashboard
 
-**Done state:** End-to-end onboarding (signup → consent → receive) mulus.
+**Migration notes:**
+- Privy migrated from on-device delegation (`useDelegatedActions`) → TEE session signers
+  (`useSessionSigners`). Consent page menggunakan `addSessionSigners({ signerId })`.
+  Signer ID dari Privy Dashboard → Authorization Keys, di-set di `NEXT_PUBLIC_PRIVY_SIGNER_ID`.
+- Backend `PRIVY_AUTHORIZATION_KEY` (private key dari signer pair yang sama) baru dipakai
+  Day 7 untuk co-sign tx server-side via `privy.walletApi.solana.signTransaction()`.
+
+**Done state:** End-to-end onboarding (signup → consent → receive) mulus. ✅
 
 ---
 
