@@ -15,6 +15,34 @@ export default function manifest(): MetadataRoute.Manifest {
     dir: "ltr",
     categories: ["finance", "productivity"],
     icons: [
+      // PNGs are required by Chromium-family browsers (Chrome, Brave, Edge)
+      // for PWA installability — without these, the install icon in the
+      // address bar and the `beforeinstallprompt` event are suppressed.
+      {
+        src: "/icons/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icons/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icons/icon-maskable-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "maskable",
+      },
+      {
+        src: "/icons/icon-maskable-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+      // SVGs kept for browsers that prefer them (sharp scaling at any size).
       {
         src: "/icons/icon.svg",
         sizes: "any",

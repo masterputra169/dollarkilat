@@ -2,7 +2,7 @@ import { z } from "zod";
 import {
   MAX_PAYMENT_IDR,
   MIN_PAYMENT_IDR,
-} from "./constants.js";
+} from "./constants";
 
 // ── User sync ──────────────────────────────────────────────────
 // Frontend POST /users/sync request body. Backend pulls real email +
@@ -79,6 +79,23 @@ export const ConsentCreateSchema = z.object({
 });
 export type ConsentCreate = z.infer<typeof ConsentCreateSchema>;
 
+export const ConsentSchema = z.object({
+  id: z.string().uuid(),
+  enabled: z.boolean(),
+  max_per_tx_idr: z.number().int().nullable(),
+  max_per_day_idr: z.number().int().nullable(),
+  consented_at: z.string().datetime(),
+  expires_at: z.string().datetime(),
+  revoked_at: z.string().datetime().nullable(),
+});
+export type Consent = z.infer<typeof ConsentSchema>;
+
+export const ConsentResponseSchema = z.object({
+  consent: ConsentSchema.nullable(),
+  wallet_delegated: z.boolean(),
+});
+export type ConsentResponse = z.infer<typeof ConsentResponseSchema>;
+
 // ── Balance ────────────────────────────────────────────────────
 export const BalanceResponseSchema = z.object({
   address: z.string(),
@@ -86,3 +103,10 @@ export const BalanceResponseSchema = z.object({
   ui_amount: z.string(),
 });
 export type BalanceResponse = z.infer<typeof BalanceResponseSchema>;
+
+// ── Rate (USDC → IDR) ──────────────────────────────────────────
+export const RateResponseSchema = z.object({
+  rate: z.string(), // numeric-as-string to avoid float
+  cached_at: z.string().datetime(),
+});
+export type RateResponse = z.infer<typeof RateResponseSchema>;

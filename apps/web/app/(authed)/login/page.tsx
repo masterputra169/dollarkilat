@@ -14,7 +14,10 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (ready && authenticated) {
-      router.replace("/dashboard");
+      // Onboarding gate — consent page itself short-circuits to /dashboard
+      // for users that already have an active consent row, so existing
+      // users don't see it again.
+      router.replace("/onboarding/consent");
     }
   }, [ready, authenticated, router]);
 

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { InstallPrompt } from "@/components/install-prompt";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -55,6 +56,7 @@ export default function RootLayout({
     >
       <body className="bg-aurora min-h-full flex flex-col relative">
         {children}
+        <InstallPrompt />
       </body>
     </html>
   );

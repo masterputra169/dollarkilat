@@ -4,12 +4,13 @@
   "private": true,
   "description": "dollarkilat — Next.js PWA frontend (UI, manifest, service worker, Privy client).",
   "scripts": {
-    "dev": "next dev --turbopack",
-    "dev:pwa": "next dev --webpack",
+    "dev": "next dev --turbopack -H 0.0.0.0",
+    "dev:pwa": "next dev --webpack -H 0.0.0.0",
     "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "icons:gen": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
     "@dollarkilat/shared": "*",
@@ -17,10 +18,12 @@
     "@serwist/next": "^9.0.0",
     "@solana-program/memo": "^0.11.0",
     "@supabase/supabase-js": "^2.45.0",
+    "@types/qrcode": "^1.5.6",
     "bignumber.js": "^9.1.2",
     "lucide-react": "latest",
     "next": "16.2.4",
     "qr-scanner": "^1.4.2",
+    "qrcode": "^1.5.4",
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "serwist": "^9.0.0",
@@ -34,6 +37,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.4",
+    "sharp": "^0.34.5",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

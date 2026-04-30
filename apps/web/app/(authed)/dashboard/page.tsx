@@ -2,25 +2,35 @@
 
 import { usePrivy } from "@privy-io/react-auth";
 import { useWallets as useSolanaWallets } from "@privy-io/react-auth/solana";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Check,
-  Clock,
   Copy,
   History,
   LogOut,
   QrCode,
+  RefreshCcw,
 } from "lucide-react";
-import type { User, UserSyncResponse } from "@dollarkilat/shared";
+import type {
+  BalanceResponse,
+  RateResponse,
+  User,
+  UserSyncResponse,
+} from "@dollarkilat/shared";
 import { api, ApiError } from "@/lib/api";
+import { formatRupiah, formatUSDC, usdcToIdr } from "@/lib/format";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardLabel } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InstallButton } from "@/components/install-button";
+
+const BALANCE_POLL_MS = 30_000;
 
 export default function DashboardPage() {
   const { ready, authenticated, user, logout, getAccessToken } = usePrivy();
@@ -30,6 +40,12 @@ export default function DashboardPage() {
   const [synced, setSynced] = useState<User | null>(null);
   const [syncing, setSyncing] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  const [balance, setBalance] = useState<BalanceResponse | null>(null);
+  const [rate, setRate] = useState<RateResponse | null>(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
+  const [balanceError, setBalanceError] = useState<string | null>(null);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   useEffect(() => {
     if (ready && !authenticated) {
@@ -75,20 +91,65 @@ export default function DashboardPage() {
     };
   }, [ready, authenticated, synced, syncing, getAccessToken]);
 
+  const solanaAddress =
+    synced?.solana_address ?? solanaWallets[0]?.address ?? null;
+
+  const fetchBalanceAndRate = useCallback(async () => {
+    if (!solanaAddress) return;
+    setBalanceLoading(true);
+    setBalanceError(null);
+    try {
+      // Token may not be ready immediately after auth — Privy provisions
+      // the wallet list first, then mints the access token. The polling
+      // effect will retry; just skip this tick silently to avoid a
+      // bogus error surface in the UI.
+      const token = await getAccessToken();
+
+      // Rate is a public endpoint, fetch it regardless of token availability.
+      const [bal, r] = await Promise.all([
+        token
+          ? api<BalanceResponse>(`/balance/${solanaAddress}`, { token })
+          : Promise.resolve(null),
+        api<RateResponse>("/rate/usdc-idr"),
+      ]);
+      if (bal) setBalance(bal);
+      setRate(r);
+      setLastUpdated(new Date());
+    } catch (err) {
+      const code = err instanceof ApiError ? err.code : "unknown";
+      console.error("[dashboard] balance/rate failed:", err);
+      setBalanceError(code);
+    } finally {
+      setBalanceLoading(false);
+    }
+  }, [solanaAddress, getAccessToken]);
+
+  useEffect(() => {
+    if (!ready || !authenticated || !solanaAddress) return;
+    fetchBalanceAndRate();
+    const interval = setInterval(fetchBalanceAndRate, BALANCE_POLL_MS);
+    return () => clearInterval(interval);
+  }, [ready, authenticated, solanaAddress, fetchBalanceAndRate]);
+
   if (!ready || !authenticated) {
     return (
       <main className="flex flex-1 items-center justify-center">
-        <div className="size-6 rounded-full border-2 border-[var(--color-fg-subtle)] border-t-transparent animate-spin" />
+        <div className="size-6 animate-spin rounded-full border-2 border-[var(--color-fg-subtle)] border-t-transparent" />
       </main>
     );
   }
 
   const email = synced?.email ?? user?.email?.address ?? user?.google?.email ?? null;
-  const solanaAddress =
-    synced?.solana_address ?? solanaWallets[0]?.address ?? null;
   const shortAddr = solanaAddress
     ? `${solanaAddress.slice(0, 4)}…${solanaAddress.slice(-4)}`
     : null;
+
+  const balanceUsdcDisplay = balance ? formatUSDC(balance.ui_amount) : "0.00";
+  const idrAmount =
+    balance && rate ? usdcToIdr(balance.ui_amount, rate.rate) : null;
+  const balanceIdrDisplay = idrAmount ? formatRupiah(idrAmount) : "Rp 0";
+  const isZeroBalance =
+    balance !== null && balance.lamports === "0" && !balanceLoading;
 
   async function copyAddress() {
     if (!solanaAddress) return;
@@ -110,6 +171,7 @@ export default function DashboardPage() {
                 {email}
               </span>
             )}
+            <InstallButton iconOnly />
             <Button
               variant="ghost"
               size="sm"
@@ -134,21 +196,48 @@ export default function DashboardPage() {
         {/* balance hero */}
         <Card variant="elevated" className="bg-card-mesh relative overflow-hidden">
           <div className="relative px-5 pt-5 sm:px-8 sm:pt-6">
-            <CardLabel>Saldo USDC</CardLabel>
-            {syncing && !synced ? (
+            <div className="flex items-start justify-between">
+              <CardLabel>Saldo USDC</CardLabel>
+              <button
+                type="button"
+                onClick={fetchBalanceAndRate}
+                disabled={balanceLoading || !solanaAddress}
+                aria-label="Refresh saldo"
+                className="-mr-2 -mt-2 inline-flex size-8 items-center justify-center rounded-full text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)] disabled:opacity-50"
+              >
+                <RefreshCcw
+                  className={`size-3.5 ${balanceLoading ? "animate-spin" : ""}`}
+                />
+              </button>
+            </div>
+            {balanceLoading && !balance ? (
               <Skeleton className="mt-3 h-12 w-40" />
             ) : (
-              <p className="mt-2 text-[2.75rem] font-semibold tabular-nums tracking-tight text-[var(--color-fg)] sm:text-6xl">
-                0<span className="text-[var(--color-fg-subtle)]">.00</span>
+              <p className="mt-2 font-mono text-[2.75rem] font-semibold tabular-nums tracking-tight text-[var(--color-fg)] sm:text-6xl">
+                {balanceUsdcDisplay.split(".")[0]}
+                <span className="text-[var(--color-fg-subtle)]">
+                  .{balanceUsdcDisplay.split(".")[1] ?? "00"}
+                </span>
               </p>
             )}
             <p className="mt-1.5 text-sm text-[var(--color-fg-muted)] sm:mt-2">
-              ≈ Rp 0 <span className="text-[var(--color-fg-faint)]">(estimasi)</span>
+              ≈ {balanceIdrDisplay}{" "}
+              <span className="text-[var(--color-fg-faint)]">(estimasi)</span>
             </p>
           </div>
-          <div className="mt-4 flex items-center gap-2 border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)] px-5 py-2.5 text-xs text-[var(--color-fg-muted)] sm:mt-5 sm:px-8 sm:py-3">
-            <Clock className="size-3.5 shrink-0" />
-            <span className="truncate">Saldo live tersedia di Day 3 — Helius RPC</span>
+          <div className="mt-4 flex items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)] px-5 py-2.5 text-xs text-[var(--color-fg-muted)] sm:mt-5 sm:px-8 sm:py-3">
+            <span className="truncate">
+              {balanceError
+                ? `Gagal ambil data (${balanceError})`
+                : lastUpdated
+                  ? `Update ${formatRelativeTime(lastUpdated)}`
+                  : "Memuat saldo on-chain…"}
+            </span>
+            {rate && (
+              <span className="shrink-0 font-mono text-[var(--color-fg-subtle)]">
+                1 USDC = {formatRupiah(rate.rate)}
+              </span>
+            )}
           </div>
         </Card>
 
@@ -207,7 +296,7 @@ export default function DashboardPage() {
             label="Terima"
             badge="Segera"
             tone="emerald"
-            disabled
+            href="/receive"
           />
           <ActionTile
             icon={<History className="size-5" />}
@@ -218,24 +307,36 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* empty transactions */}
+        {/* empty / activity state */}
         <Card variant="outline">
           <div className="flex flex-col items-center px-5 py-10 text-center sm:px-6 sm:py-12">
             <div className="flex size-12 items-center justify-center rounded-full bg-[var(--color-bg-subtle)] text-[var(--color-fg-subtle)]">
               <ArrowUpFromLine className="size-5" />
             </div>
             <h3 className="mt-4 text-base font-semibold text-[var(--color-fg)]">
-              Belum ada transaksi
+              {isZeroBalance ? "Belum ada USDC" : "Belum ada transaksi"}
             </h3>
             <p className="mt-1.5 max-w-sm text-sm text-[var(--color-fg-muted)]">
-              Kirim USDC ke alamat di atas untuk testing. Riwayat akan muncul
-              di sini setelah Day 9.
+              {isZeroBalance
+                ? "Klik Terima untuk dapat alamat deposit, atau kirim USDC ke alamat di atas."
+                : "Riwayat akan muncul di sini setelah Day 9."}
             </p>
           </div>
         </Card>
       </div>
     </main>
   );
+}
+
+function formatRelativeTime(date: Date): string {
+  const diff = Date.now() - date.getTime();
+  const sec = Math.floor(diff / 1000);
+  if (sec < 5) return "barusan";
+  if (sec < 60) return `${sec} detik lalu`;
+  const min = Math.floor(sec / 60);
+  if (min < 60) return `${min} menit lalu`;
+  const hr = Math.floor(min / 60);
+  return `${hr} jam lalu`;
 }
 
 type ActionTone = "brand" | "emerald" | "amber";
@@ -255,19 +356,19 @@ function ActionTile({
   badge,
   tone = "brand",
   disabled,
+  href,
 }: {
   icon: React.ReactNode;
   label: string;
   badge: string;
   tone?: ActionTone;
   disabled?: boolean;
+  href?: string;
 }) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      className="group relative flex flex-col items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-2 py-4 text-[var(--color-fg)] shadow-[var(--shadow-sm)] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-[var(--shadow-sm)] sm:gap-2.5 sm:px-3 sm:py-5"
-    >
+  const tileClass =
+    "group relative flex flex-col items-center gap-2 rounded-2xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-2 py-4 text-[var(--color-fg)] shadow-[var(--shadow-sm)] transition-all duration-150 hover:-translate-y-0.5 hover:shadow-[var(--shadow-md)] active:translate-y-0 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:translate-y-0 disabled:hover:shadow-[var(--shadow-sm)] sm:gap-2.5 sm:px-3 sm:py-5";
+  const inner = (
+    <>
       <span
         className={`flex size-10 items-center justify-center rounded-xl transition-transform duration-150 group-hover:scale-105 sm:size-11 ${actionToneStyles[tone]}`}
       >
@@ -279,6 +380,18 @@ function ActionTile({
           {badge}
         </span>
       )}
+    </>
+  );
+  if (href && !disabled) {
+    return (
+      <Link href={href} className={tileClass}>
+        {inner}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" disabled={disabled} className={tileClass}>
+      {inner}
     </button>
   );
 }

@@ -19,7 +19,8 @@
     "start:api": "npm --workspace @dollarkilat/api run start",
     "lint": "npm --workspaces --if-present run lint",
     "typecheck": "npm --workspaces --if-present run typecheck",
-    "fee-payer:generate": "npm --workspace @dollarkilat/api run fee-payer:generate"
+    "fee-payer:generate": "npm --workspace @dollarkilat/api run fee-payer:generate",
+    "treasury:setup": "npm --workspace @dollarkilat/api run treasury:setup"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

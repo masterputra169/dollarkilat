@@ -10,6 +10,7 @@ import { sponsorTx } from "./routes/sponsor-tx.js";
 import { consent } from "./routes/consent.js";
 import { webhooks } from "./routes/webhooks.js";
 import { balance } from "./routes/balance.js";
+import { rate } from "./routes/rate.js";
 import { users } from "./routes/users.js";
 
 const app = new Hono();
@@ -34,6 +35,7 @@ app.route("/sponsor-tx", sponsorTx);
 app.route("/consent", consent);
 app.route("/webhooks", webhooks);
 app.route("/balance", balance);
+app.route("/rate", rate);
 
 app.onError((err, c) => {
   console.error("[unhandled]", err);
@@ -43,6 +45,6 @@ app.onError((err, c) => {
 app.notFound((c) => c.json({ error: "not_found" }, 404));
 
 const port = Number(env.PORT);
-serve({ fetch: app.fetch, port }, (info) => {
-  console.log(`✓ dollarkilat api listening on http://localhost:${info.port}`);
+serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, (info) => {
+  console.log(`✓ dollarkilat api listening on http://0.0.0.0:${info.port} (LAN reachable)`);
 });

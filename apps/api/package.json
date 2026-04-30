@@ -11,7 +11,8 @@
     "start": "node dist/index.js",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "fee-payer:generate": "tsx scripts/generate-fee-payer.ts"
+    "fee-payer:generate": "tsx scripts/generate-fee-payer.ts",
+    "treasury:setup": "tsx --env-file=.env.local scripts/setup-treasury.ts"
   },
   "dependencies": {
     "@dollarkilat/shared": "*",
