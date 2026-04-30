@@ -28,8 +28,16 @@ export const UserSyncResponseSchema = z.object({
 export type UserSyncResponse = z.infer<typeof UserSyncResponseSchema>;
 
 // ── QRIS quote ─────────────────────────────────────────────────
+// `amount_idr` optional — required when QRIS is static (no embedded amount).
+// Server validates: dynamic QR ignores client amount, static QR requires it.
 export const QuoteRequestSchema = z.object({
   qris_string: z.string().min(20).max(500),
+  amount_idr: z
+    .number()
+    .int()
+    .min(MIN_PAYMENT_IDR)
+    .max(MAX_PAYMENT_IDR)
+    .optional(),
 });
 export type QuoteRequest = z.infer<typeof QuoteRequestSchema>;
 
@@ -63,6 +71,9 @@ export const PayResponseSchema = z.object({
     "failed_settlement",
   ]),
   signature: z.string(),
+  /** True until Day 7 wires real Solana fee-payer signing. UI uses this to
+   * surface a "Demo mode" pill so users aren't misled. */
+  is_mock: z.boolean().optional(),
 });
 export type PayResponse = z.infer<typeof PayResponseSchema>;
 
