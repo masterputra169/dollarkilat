@@ -9,8 +9,10 @@
   ],
   "scripts": {
     "dev": "concurrently -n web,api -c blue,magenta \"npm:dev:web\" \"npm:dev:api\"",
+    "dev:https": "concurrently -n web,api -c blue,magenta \"npm:dev:web:https\" \"npm:dev:api\"",
     "dev:web": "npm --workspace @dollarkilat/web run dev",
     "dev:web:pwa": "npm --workspace @dollarkilat/web run dev:pwa",
+    "dev:web:https": "npm --workspace @dollarkilat/web run dev:https",
     "dev:api": "npm --workspace @dollarkilat/api run dev",
     "build": "npm --workspaces --if-present run build",
     "build:web": "npm --workspace @dollarkilat/web run build",

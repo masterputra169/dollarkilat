@@ -613,6 +613,29 @@ body {
   );
 }
 
+/* QR scanner overlay — override qr-scanner default yellow (#e9b213) to
+   brand blue. Library uses inline `style="stroke:#e9b213"` so CSS needs
+   !important to win the cascade. Adds a soft drop-shadow glow that matches
+   the rest of our dark/aurora aesthetic. */
+.scan-region-highlight-svg,
+.scan-region-highlight-svg path,
+.code-outline-highlight,
+.code-outline-highlight path {
+  stroke: #60a5fa !important;
+  stroke-width: 4 !important;
+  filter: drop-shadow(0 0 6px rgb(96 165 250 / 0.55))
+    drop-shadow(0 0 16px rgb(99 102 241 / 0.35));
+}
+
+/* Code-outline (box yang muncul saat QR terdetect) — sedikit lebih bright
+   sebagai feedback "ketangkep!" */
+.code-outline-highlight,
+.code-outline-highlight path {
+  stroke: #a5f3fc !important;
+  filter: drop-shadow(0 0 6px rgb(34 211 238 / 0.7))
+    drop-shadow(0 0 16px rgb(96 165 250 / 0.4));
+}
+
 /* Decorative hairline rule with chromatic shimmer */
 .section-divider-rich {
   position: relative;

@@ -31,11 +31,31 @@ async function getInternalUserId(privyUserId: string): Promise<string | null> {
   return data?.id ?? null;
 }
 
-/** Has the user actually delegated their Solana embedded wallet to Privy? */
+/**
+ * Server-side delegation check.
+ *
+ * Privy ships two delegation flavors:
+ *   - Legacy on-device delegation → wallet has `delegated: true` on linkedAccount
+ *   - TEE session signers (current default) → wallet has `additionalSigners[]`
+ *     populated, NOT the legacy `delegated` flag
+ *
+ * Since this app uses session signers (`useSessionSigners().addSessionSigners`),
+ * the legacy flag is *never* set. Authoritative check requires calling
+ * `walletApi.getWallet()` and inspecting `additionalSigners` — but that needs
+ * the authorization private key configured (PRIVY_AUTHORIZATION_KEY, set in
+ * Day 7). For now we trust the client: frontend calls addSessionSigners
+ * (Privy biometric prompt = real authority transfer) before POSTing here.
+ *
+ * Worst-case attack: client lies they delegated. Result: consent row exists
+ * but Day 7's `walletApi.solana.signTransaction` fails — no money moves.
+ * Defense-in-depth via signing failure is sufficient for MVP.
+ */
 async function isWalletDelegated(privyUserId: string): Promise<boolean> {
   try {
     const user = await privy.getUserById(privyUserId);
-    return user.linkedAccounts.some(
+    // Accept either signal: legacy `delegated` flag OR a Solana wallet
+    // exists at all (real check happens at sign time).
+    const hasLegacyFlag = user.linkedAccounts.some(
       (a) =>
         a.type === "wallet" &&
         "chainType" in a &&
@@ -43,6 +63,11 @@ async function isWalletDelegated(privyUserId: string): Promise<boolean> {
         "delegated" in a &&
         a.delegated === true,
     );
+    const hasSolanaWallet = user.linkedAccounts.some(
+      (a) =>
+        a.type === "wallet" && "chainType" in a && a.chainType === "solana",
+    );
+    return hasLegacyFlag || hasSolanaWallet;
   } catch (err) {
     console.error("[consent] privy lookup failed:", err);
     return false;

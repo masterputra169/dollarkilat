@@ -1,5 +1,6 @@
 import { Toaster } from "sonner";
 import { Providers } from "../providers";
+import { IdleLogout } from "@/components/session/idle-logout";
 
 export default function AuthedLayout({
   children,
@@ -9,6 +10,7 @@ export default function AuthedLayout({
   return (
     <Providers>
       {children}
+      <IdleLogout />
       <Toaster
         position="top-center"
         richColors

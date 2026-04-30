@@ -90,15 +90,14 @@ export default function ReceivePage() {
       {/* sticky header */}
       <header className="sticky top-0 z-10 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg)]/80 backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-5 py-3 sm:px-8 sm:py-3.5">
+          <Logo />
           <Link
             href="/dashboard"
-            className="-ml-2 inline-flex h-9 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"
+            className="-mr-2 inline-flex h-9 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"
           >
             <ArrowLeft className="size-4" />
             <span>Kembali</span>
           </Link>
-          <Logo />
-          <span className="size-9" aria-hidden />
         </div>
       </header>
 

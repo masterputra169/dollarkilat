@@ -124,11 +124,45 @@ export default function DashboardPage() {
     }
   }, [solanaAddress, getAccessToken]);
 
+  // Smart polling — only when (tab visible AND online). Browsers throttle
+  // background timers anyway, but stopping cleanly saves Helius RPC quota
+  // + battery on mobile. We restart with an immediate fetch on resume so
+  // the user sees fresh data the moment they come back.
   useEffect(() => {
     if (!ready || !authenticated || !solanaAddress) return;
-    fetchBalanceAndRate();
-    const interval = setInterval(fetchBalanceAndRate, BALANCE_POLL_MS);
-    return () => clearInterval(interval);
+    if (typeof window === "undefined") return;
+
+    let interval: ReturnType<typeof setInterval> | null = null;
+
+    function isActive() {
+      return document.visibilityState === "visible" && navigator.onLine;
+    }
+    function startPolling() {
+      if (interval) return;
+      fetchBalanceAndRate();
+      interval = setInterval(fetchBalanceAndRate, BALANCE_POLL_MS);
+    }
+    function stopPolling() {
+      if (!interval) return;
+      clearInterval(interval);
+      interval = null;
+    }
+    function reconcile() {
+      if (isActive()) startPolling();
+      else stopPolling();
+    }
+
+    reconcile();
+    document.addEventListener("visibilitychange", reconcile);
+    window.addEventListener("online", reconcile);
+    window.addEventListener("offline", reconcile);
+
+    return () => {
+      stopPolling();
+      document.removeEventListener("visibilitychange", reconcile);
+      window.removeEventListener("online", reconcile);
+      window.removeEventListener("offline", reconcile);
+    };
   }, [ready, authenticated, solanaAddress, fetchBalanceAndRate]);
 
   if (!ready || !authenticated) {
@@ -289,7 +323,7 @@ export default function DashboardPage() {
             label="Bayar"
             badge="Segera"
             tone="brand"
-            disabled
+            href="/pay"
           />
           <ActionTile
             icon={<ArrowDownToLine className="size-5" />}
