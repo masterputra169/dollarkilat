@@ -1,5 +1,5 @@
 /**
- * Mock PJP provider — simulates DOKU/Flip-shape API for hackathon demo.
+ * Mock PJP provider — simulates Flip-shape API for hackathon demo.
  *
  * Behavior:
  *  - `initiate()` records the request in-memory, returns a UUID-shape pjp_id

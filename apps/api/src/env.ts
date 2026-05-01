@@ -34,11 +34,10 @@ const EnvSchema = z.object({
   COINGECKO_API_KEY: z.string().optional(),
 
   // PJP partner
-  PJP_PARTNER: z.enum(["mock", "doku", "flip"]).default("mock"),
+  PJP_PARTNER: z.enum(["mock", "flip"]).default("mock"),
   // Generic creds; per-partner mapping:
   //   - flip:  PJP_API_KEY      = Flip "secret_key" (Basic auth user)
   //            PJP_WEBHOOK_SECRET = Flip "validation token" (x-callback-token)
-  //   - doku:  TBD when implemented
   PJP_API_KEY: z.string().optional(),
   PJP_API_SECRET: z.string().optional(),
   PJP_WEBHOOK_SECRET: z.string().optional(),
@@ -90,7 +89,7 @@ function loadEnv(): Env {
         process.env.TREASURY_USDC_ATA || "11111111111111111111111111111111",
       COINGECKO_API_KEY: process.env.COINGECKO_API_KEY,
       PJP_PARTNER:
-        (process.env.PJP_PARTNER as "mock" | "doku" | "flip") || "mock",
+        (process.env.PJP_PARTNER as "mock" | "flip") || "mock",
       PJP_API_KEY: process.env.PJP_API_KEY,
       PJP_API_SECRET: process.env.PJP_API_SECRET,
       PJP_WEBHOOK_SECRET: process.env.PJP_WEBHOOK_SECRET,

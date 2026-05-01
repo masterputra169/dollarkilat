@@ -1,7 +1,6 @@
 /**
- * PJP factory — return the active provider per env. Real (DOKU/Flip)
- * providers will be added behind feature flags later; for hackathon we
- * only ship Mock.
+ * PJP factory — return the active provider per env. Mock for demo,
+ * Flip for real disbursement.
  */
 
 import { env } from "../../env.js";
@@ -32,12 +31,6 @@ export function getPJP(): PJPProvider {
       });
       break;
     }
-    case "doku":
-      // Implementation lands post-hackathon. Failing fast beats silent
-      // degradation to mock in production.
-      throw new Error(
-        `PJP_PARTNER=${env.PJP_PARTNER} not yet implemented; use "mock" or "flip".`,
-      );
     default: {
       // Exhaustiveness guard — TypeScript already restricts the union, but
       // a runtime check guards against env-time corruption.

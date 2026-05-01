@@ -16,6 +16,7 @@
 | 2026-04-30 | WebSocket subscription untuk balance | L4 — Helius Geyser/WebSocket support `accountSubscribe` per address. Push update saat ada Solana tx affecting wallet, gak perlu polling. Saving 90%+. Effort: connection management + reconnect logic + token refresh handling. | 1-2 hari | Defer ke production scale |
 | 2026-05-01 | **Anchor escrow program** untuk trustless dual-side settlement | USDC user lock di escrow PDA saat bayar, bukan langsung ke treasury. Backend call PJP → kalau success, panggil `release()` → USDC pindah ke treasury; kalau PJP fail/timeout 5 menit, **user auto-claim refund** trustless. Eliminate manual reconciliation kalau backend offline atau PJP partner gagal. **Pitch story kuat**: "trust minimized to Solana itself". Architecture: Anchor program dengan 3 instruction (lock, release, refund), EscrowState account per tx (user, amount, expires_at, status), validate-tx whitelist diupgrade buat permit escrow.lock instead of direct treasury transfer, backend `submit-tx.ts` ditambah path call escrow program. Trade-off: +1 SOL deploy fee, refactor backend integration, learning curve Anchor (~2 hari kalau belum familiar). Risk: bug program butuh redeploy. **Decision Day 7**: defer karena ahead-of-schedule resource lebih baik dipake untuk polish + demo prep. Document architecture detail di docs/04-architecture.md sebagai "future work". | 2-2.5 hari (atau 6-8 jam kalau familiar Anchor) | Defer post-hackathon |
 | 2026-05-01 | **Pivot Flip Bisnis → DOKU QRIS Direct** untuk akses 40+ juta merchant | **Critical scale unlock.** Flip Bisnis (current) = bank account disbursement, **butuh merchant onboard** kasih bank info → demand-side bottleneck (user gak bisa bayar warung sebelah yang belum daftar). DOKU / iPaymu / Midtrans punya **QRIS Direct Payment API** — kasih NMID + amount → mereka lookup BI registry realtime + route via QRIS national network → IDR sampai ke merchant via PJP existing mereka **tanpa onboarding ke kita**. Architecture-mu udah `PJPProvider` interface (apps/api/src/lib/pjp/) — swap implementation = 1 hari work: (1) bikin `flip.ts` → `doku.ts`, (2) implement initiate/getStatus/parseWebhook sesuai DOKU API, (3) update env factory case "doku" jadi instantiate DokuPJP, (4) test E2E dengan production credentials, (5) update merchant view jadi optional (tampil dashboard income tapi gak required untuk receive payment). **Trade-off**: DOKU onboarding lebih lambat (2-8 minggu vs Flip 1-7 hari), fee mungkin sedikit lebih tinggi (1-1.5% vs ~0.5%), butuh PT + KYC + production review. **Total addressable market** beralih dari "merchant yang onboard" → "**40+ juta merchant QRIS Indonesia**" via BI national registry. **Pitch story kuat**: "Phase 1 onboarded merchants, Phase 2 DOKU integration → instant access ke seluruh QRIS network". | 1 hari code + 4-8 minggu legal/onboarding | Defer post-PT |
+| 2026-05-01 | **DOKU sandbox finding: standard akses = QRIS Acceptance, BUKAN Payment Initiation** | Investigasi 2026-05-01 — DOKU sandbox dashboard yang tersedia publik = **QRIS Acceptance** product (merchant **terima** pembayaran, notify URL `/dw-qris-merchant-bo/notification/payment` = merchant back-office). Bukan QRIS Payment Initiation (send-side, yang dollarkilat butuh). True Payment Initiation di DOKU = enterprise contract, butuh PT + KYB + production review, sandbox-nya tertutup. **Implication**: pivot ke DOKU di hackathon timeline = dead-end. Tetap pakai Flip Bisnis (disbursement, working). DOKU disbursement product (DOKU Kirim) memang lebih luas dari Flip — support bank + e-wallet (DANA/OVO/GoPay/ShopeePay) + VA — tapi tetap butuh **destination identifier konkret** (account number / wallet ID), **bukan** NMID lookup. Skeleton `apps/api/src/lib/pjp/doku.ts` dibiarkan as-is sebagai dokumentasi factory wiring; throws `doku_not_configured` sampai produk yang benar ter-akses. | Investigasi only, no code change | Documented |
 
 ---
 
@@ -75,3 +76,60 @@
 ### Estimated timeline: **2-4 bulan dari fundraising**
 
 Critical path: PT setup (2-3 minggu) → PJP onboard KYC (3-4 minggu) → integration test (1-2 minggu) → beta (2-4 minggu).
+
+---
+
+## 📡 Technical Note — Apa yang ada di QRIS code (EMVCo TLV)
+
+> Catatan referensi setelah investigasi 2026-05-01. Penting untuk ngerti kenapa
+> closed-loop merchant DB adalah satu-satunya path tanpa license PJSP.
+
+QRIS pakai standar **EMVCo Tag-Length-Value**. Konten utama:
+
+| Tag | Isi |
+|---|---|
+| 00 | Payload Format Indicator |
+| 01 | 11=static, 12=dynamic |
+| 26-45 | Merchant Account Info (multi-PJSP slots) |
+| 52 | MCC (merchant category) |
+| 53 | Currency (360=IDR) |
+| 54 | Amount (dynamic only) |
+| 58 | Country (ID) |
+| 59 | Merchant Name |
+| 60 | Merchant City |
+| 62 | Additional data |
+| 63 | CRC16-CCITT |
+
+**Tag 26-45 sub-fields:**
+- Sub 00: GUID (`ID.CO.QRIS.WWW`)
+- Sub 01: Merchant PAN (`9360...`)
+- Sub 02: NMID (`ID20XXXXXXXX`)
+- Sub 03: Merchant Criteria (UMI/UME/UKE/UBE)
+
+**Yang TIDAK ADA di QRIS code:**
+- ❌ Nomor rekening bank
+- ❌ Nomor / ID e-wallet
+- ❌ PJSP tujuan settlement
+- ❌ Account holder name
+
+**Routing real:** Prefix `9360XXXX` di Merchant PAN → identifies acquirer PJSP (BCA/BRI/BNI/Mandiri/DANA/OVO/GoPay/dst). Mapping `NMID → settlement account` cuma dimiliki PJSP acquirer + BI National Payment Gateway. Public/third-party tidak bisa resolve.
+
+**Konsekuensi arsitektur dollarkilat:**
+1. App scan QR → extract NMID + merchant_name + city
+2. Lookup `merchants` table by NMID (closed-loop DB internal)
+3. Kalau match → ambil bank/e-wallet info yang merchant kasih saat onboard
+4. Disburse via Flip/DOKU → recipient
+5. Kalau NMID tidak ada di DB → "merchant belum onboard, undang merchant register"
+
+True open-loop "bayar any QRIS merchant" = butuh PJSP partnership atau license sendiri. Diluar scope hackathon dan v2 awal.
+
+### Status implementasi closed-loop (per 2026-05-01)
+
+✅ Schema: `migrations/0004_merchants.sql` + `0005_merchant_bank.sql` (NMID, bank_code, account_number, is_verified)
+✅ Claim flow: `apps/web/app/(authed)/merchant/page.tsx` (form + bank fields all-or-nothing)
+✅ NMID lookup: `apps/api/src/routes/qris.ts:254` (case-insensitive UPPER match)
+✅ FK link: `transactions.merchant_db_id`
+✅ Disbursement: Flip Bisnis tested, dashboard PENDING confirmed
+✅ Demo aggregation: merchant dashboard show income from linked transactions
+
+Closed-loop = production-ready secara teknis, tinggal scale via merchant onboarding effort.

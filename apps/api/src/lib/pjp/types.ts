@@ -1,9 +1,9 @@
 /**
  * PJP (Penyedia Jasa Pembayaran) abstraction.
  *
- * For the hackathon MVP we only ship a Mock implementation. Production
- * replacement (DOKU/Flip) just needs another class implementing the same
- * interface — wiring stays untouched in routes/qris.
+ * For the hackathon MVP we ship Mock + Flip implementations. Future
+ * partners just need another class implementing the same interface —
+ * wiring stays untouched in routes/qris.
  *
  * Lifecycle:
  *   1. Backend builds a quote → calls `provider.initiate({...})`
@@ -34,8 +34,8 @@ export interface PJPInitiateInput {
   /** Optional remarks shown on partner dashboard. */
   remarks?: string;
   /**
-   * Bank routing for partners that disburse to bank accounts (Flip, DOKU
-   * disbursement, etc). Required when PJP_PARTNER=flip; ignored by mock.
+   * Bank routing for partners that disburse to bank accounts.
+   * Required when PJP_PARTNER=flip; ignored by mock.
    */
   merchant?: {
     bank_code: string;
@@ -75,7 +75,7 @@ export interface PJPEvent {
 }
 
 export interface PJPProvider {
-  /** Human-readable identifier — "mock", "doku", "flip" etc. */
+  /** Human-readable identifier — "mock", "flip" etc. */
   readonly name: string;
 
   initiate(input: PJPInitiateInput): Promise<PJPInitiateResponse>;

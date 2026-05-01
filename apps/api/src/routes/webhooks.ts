@@ -13,7 +13,7 @@ export const webhooks = new Hono();
  * Flow:
  *   1. Read raw body (we need exact bytes for HMAC verification)
  *   2. Hand off to provider's `parseWebhook()` — it owns its own auth scheme
- *      (mock: HMAC-SHA256 over body; DOKU: HS256 JWT in header; Flip: SHA1 signature)
+ *      (mock: HMAC-SHA256 over body; Flip: token form-field)
  *   3. Update transactions row by external_id (= our internal tx UUID)
  *   4. Idempotent: re-applying the same event yields the same row state
  */

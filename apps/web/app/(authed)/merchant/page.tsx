@@ -156,7 +156,7 @@ function DemoModeBanner() {
             IDR pembayaran <strong className="text-amber-100">disimulasikan</strong>{" "}
             di sistem kami — belum di-routing ke rekening bank/e-wallet kamu.
             Real settlement aktif setelah dollarkilat onboard ke partner PJP
-            (Flip Bisnis / DOKU) post-fundraising.
+            (Flip Bisnis) post-fundraising.
           </p>
         </div>
       </div>
