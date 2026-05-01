@@ -47,9 +47,15 @@ export class MockPJP implements PJPProvider {
 
   private readonly store = new Map<string, MockRecord>();
   private readonly webhookSecret: string;
+  /** Where to fire webhooks. Real partners call our public URL; mock loops
+   *  back to localhost so the dev flow closes naturally. */
+  private readonly webhookUrl: string;
 
-  constructor(webhookSecret: string) {
+  constructor(webhookSecret: string, webhookUrl?: string) {
     this.webhookSecret = webhookSecret;
+    this.webhookUrl =
+      webhookUrl ??
+      `http://localhost:${process.env.PORT ?? "8787"}/webhooks/pjp`;
   }
 
   async initiate(input: PJPInitiateInput): Promise<PJPInitiateResponse> {
@@ -61,7 +67,7 @@ export class MockPJP implements PJPProvider {
       pjp_id,
       external_id: input.external_id,
       status: "pending",
-      amount_idr: input.amount_idr.toFixed(0),
+      amount_idr: input.amount_idr,
       merchant_name: input.merchant_name,
       initiated_at: now.toISOString(),
       expires_at,
@@ -156,5 +162,38 @@ export class MockPJP implements PJPProvider {
       r.failure_reason = "mock_random_decline";
     }
     this.store.set(pjp_id, r);
+
+    // Fire webhook to ourselves so the lifecycle closes (DB row → completed
+    // or failed_settlement). Real partners do this against our public URL;
+    // localhost loopback is fine for dev.
+    void this.fireWebhook(r).catch((err) => {
+      console.error("[mock-pjp] webhook fire failed:", err);
+    });
+  }
+
+  private async fireWebhook(r: MockRecord): Promise<void> {
+    const payload = JSON.stringify({
+      pjp_id: r.pjp_id,
+      external_id: r.external_id,
+      status: r.status,
+      occurred_at: new Date().toISOString(),
+    });
+    const sig = createHmac("sha256", this.webhookSecret)
+      .update(payload)
+      .digest("hex");
+    const res = await fetch(this.webhookUrl, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-mock-signature": sig,
+      },
+      body: payload,
+    });
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      console.error(
+        `[mock-pjp] webhook returned ${res.status}: ${body.slice(0, 200)}`,
+      );
+    }
   }
 }

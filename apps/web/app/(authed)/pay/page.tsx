@@ -1,6 +1,10 @@
 "use client";
 
 import { usePrivy } from "@privy-io/react-auth";
+import {
+  useSignTransaction,
+  useWallets as useSolanaWallets,
+} from "@privy-io/react-auth/solana";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -49,8 +53,23 @@ type Step =
 
 type Mode = "one_tap" | "biometric";
 
+function base64ToBytes(b64: string): Uint8Array {
+  const binary = atob(b64);
+  const out = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+  return out;
+}
+
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
+  return btoa(binary);
+}
+
 export default function PayPage() {
   const { ready, authenticated, getAccessToken } = usePrivy();
+  const { signTransaction } = useSignTransaction();
+  const { wallets: solanaWallets } = useSolanaWallets();
   const router = useRouter();
   const [step, setStep] = useState<Step>({ kind: "scan" });
   const [consent, setConsent] = useState<ConsentResponse | null>(null);
@@ -136,6 +155,23 @@ export default function PayPage() {
       const { quote, decoded } = step;
       setStep({ kind: "processing", quote });
       try {
+        const wallet = solanaWallets[0];
+        if (!wallet) throw new Error("wallet_not_ready");
+
+        // 1. Decode the unsigned tx the backend built for us.
+        const unsignedBytes = base64ToBytes(quote.unsigned_tx_base64);
+
+        // 2. Ask Privy to sign it. In biometric mode this triggers a
+        //    biometric prompt; in delegated/One-Tap mode the registered
+        //    session signer signs without prompt.
+        const signed = await signTransaction({
+          transaction: unsignedBytes,
+          wallet,
+        });
+        const signedBase64 = bytesToBase64(signed.signedTransaction);
+
+        // 3. Submit to backend → backend validates + co-signs as fee payer
+        //    + submits to Solana + waits confirmation + records DB row.
         const token = await getAccessToken();
         if (!token) throw new Error("no_access_token");
         const res = await api<PayResponse>("/qris/pay", {
@@ -145,6 +181,7 @@ export default function PayPage() {
             quote_id: quote.quote_id,
             qris_string: decoded.raw,
             mode: mode === "one_tap" ? "delegated" : "biometric",
+            signed_tx: signedBase64,
           }),
         });
         setStep({
@@ -161,7 +198,7 @@ export default function PayPage() {
         setStep({ kind: "failed", reason });
       }
     },
-    [step, getAccessToken],
+    [step, getAccessToken, signTransaction, solanaWallets],
   );
 
   if (!ready || !authenticated) {

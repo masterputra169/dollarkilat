@@ -22,7 +22,8 @@
     "lint": "npm --workspaces --if-present run lint",
     "typecheck": "npm --workspaces --if-present run typecheck",
     "fee-payer:generate": "npm --workspace @dollarkilat/api run fee-payer:generate",
-    "treasury:setup": "npm --workspace @dollarkilat/api run treasury:setup"
+    "treasury:setup": "npm --workspace @dollarkilat/api run treasury:setup",
+    "treasury:withdraw": "npm --workspace @dollarkilat/api run treasury:withdraw --"
   },
   "devDependencies": {
     "concurrently": "^9.1.0"

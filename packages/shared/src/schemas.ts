@@ -49,6 +49,13 @@ export const QuoteResponseSchema = z.object({
   exchange_rate: z.string(), // BigNumber-as-string
   merchant_name: z.string(),
   expires_at: z.string().datetime(),
+  /**
+   * Base64-encoded UNSIGNED transaction message (legacy or v0). Frontend
+   * passes this directly to Privy's useSignTransaction → returns signed
+   * bytes → POST to /qris/pay. Bytes are committed at quote time so the
+   * blockhash, fee_payer, and amount can't be changed by the client.
+   */
+  unsigned_tx_base64: z.string(),
 });
 export type QuoteResponse = z.infer<typeof QuoteResponseSchema>;
 

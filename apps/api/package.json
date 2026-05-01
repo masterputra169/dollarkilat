@@ -12,7 +12,8 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "fee-payer:generate": "tsx scripts/generate-fee-payer.ts",
-    "treasury:setup": "tsx --env-file=.env.local scripts/setup-treasury.ts"
+    "treasury:setup": "tsx --env-file=.env.local scripts/setup-treasury.ts",
+    "treasury:withdraw": "tsx --env-file=.env.local scripts/treasury-withdraw.ts"
   },
   "dependencies": {
     "@dollarkilat/shared": "*",

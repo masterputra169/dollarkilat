@@ -13,8 +13,6 @@
  *   4. Backend can poll `provider.getStatus(pjp_id)` while waiting
  */
 
-import type BigNumber from "bignumber.js";
-
 export type PJPStatus =
   | "pending"
   | "settled"
@@ -25,8 +23,8 @@ export type PJPStatus =
 export interface PJPInitiateInput {
   /** Internal transaction id from our DB — partner sees this as `external_id`. */
   external_id: string;
-  /** IDR amount, integer rupiah. */
-  amount_idr: BigNumber;
+  /** IDR amount, integer rupiah as string (avoid float). */
+  amount_idr: string;
   /** Raw QRIS string we scanned — partner re-validates. */
   qris_string: string;
   /** Merchant display name for partner-side audit. */

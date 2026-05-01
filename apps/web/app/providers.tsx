@@ -2,9 +2,25 @@
 
 import { PrivyProvider } from "@privy-io/react-auth";
 import { toSolanaWalletConnectors } from "@privy-io/react-auth/solana";
+import {
+  createSolanaRpc,
+  createSolanaRpcSubscriptions,
+} from "@solana/kit";
 import { publicEnv } from "@/lib/env";
 
 const solanaConnectors = toSolanaWalletConnectors();
+
+// Devnet RPC config — Privy defaults to mainnet otherwise and `useSignTransaction`
+// throws "No RPC configuration found for chain solana:mainnet" on signing.
+// We point both `solana:devnet` and `solana:mainnet` at the public devnet RPC
+// so any code path resolves cleanly during the hackathon.
+const DEVNET_RPC_URL = "https://api.devnet.solana.com";
+const DEVNET_WS_URL = "wss://api.devnet.solana.com";
+const devnetRpc = {
+  rpc: createSolanaRpc(DEVNET_RPC_URL),
+  rpcSubscriptions: createSolanaRpcSubscriptions(DEVNET_WS_URL),
+  blockExplorerUrl: "https://explorer.solana.com?cluster=devnet",
+};
 
 export function Providers({ children }: { children: React.ReactNode }) {
   // Read inside the component so the missing-env error surfaces clearly in
@@ -29,6 +45,12 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
         externalWallets: {
           solana: { connectors: solanaConnectors },
+        },
+        solana: {
+          rpcs: {
+            "solana:devnet": devnetRpc,
+            "solana:mainnet": devnetRpc, // alias to devnet for hackathon
+          },
         },
       }}
     >

@@ -1,12 +1,100 @@
 import { Hono } from "hono";
+import { supabaseAdmin } from "../lib/supabase.js";
+import { getPJP } from "../lib/pjp/index.js";
 
-// TODO Day 8: PJP partner settlement webhook. Signature verify + idempotency.
-// Receives callback from DOKU/Flip after QRIS payment to merchant.
 export const webhooks = new Hono();
 
-webhooks.post("/pjp", async (c) =>
-  c.json(
-    { error: "not_implemented", task: "Day 8 — implement PJP webhook" },
-    501,
-  ),
-);
+/**
+ * POST /webhooks/pjp
+ *
+ * Receives settlement callbacks from the active PJP partner. Signature
+ * verification + idempotent status update + transaction lifecycle advance.
+ *
+ * Flow:
+ *   1. Read raw body (we need exact bytes for HMAC verification)
+ *   2. Hand off to provider's `parseWebhook()` — it owns its own auth scheme
+ *      (mock: HMAC-SHA256 over body; DOKU: HS256 JWT in header; Flip: SHA1 signature)
+ *   3. Update transactions row by external_id (= our internal tx UUID)
+ *   4. Idempotent: re-applying the same event yields the same row state
+ */
+webhooks.post("/pjp", async (c) => {
+  const provider = getPJP();
+
+  // We need the raw body bytes for signature verification — Hono's c.req.text()
+  // returns the unaltered body string the partner signed.
+  const rawBody = await c.req.text();
+
+  // Headers — coerce iterable to plain Record<string,string> for parseWebhook.
+  const headers: Record<string, string> = {};
+  c.req.raw.headers.forEach((v, k) => {
+    headers[k.toLowerCase()] = v;
+  });
+
+  const event = provider.parseWebhook(headers, rawBody);
+  if (!event) {
+    // Either signature failed or payload is malformed. We answer 401 so
+    // partners can retry with corrected signature; mock stops retrying.
+    return c.json({ error: "invalid_signature_or_payload" }, 401);
+  }
+
+  // Map PJP status → our transaction status.
+  // Settlement-side terminal states:
+  //   "settled"    → "completed"           (IDR delivered to merchant)
+  //   "failed"     → "failed_settlement"   (PJP couldn't deliver)
+  //   "expired"    → "failed_settlement"   (window closed)
+  //   "cancelled"  → "failed_settlement"   (manual cancel from partner)
+  //   "pending"    → no DB change          (already pjp_pending)
+  let nextStatus: string | null = null;
+  let failureReason: string | null = null;
+  let settledAt: string | null = null;
+
+  switch (event.status) {
+    case "settled":
+      nextStatus = "completed";
+      settledAt = event.occurred_at;
+      break;
+    case "failed":
+      nextStatus = "failed_settlement";
+      failureReason = "pjp_failed";
+      break;
+    case "expired":
+      nextStatus = "failed_settlement";
+      failureReason = "pjp_expired";
+      break;
+    case "cancelled":
+      nextStatus = "failed_settlement";
+      failureReason = "pjp_cancelled";
+      break;
+    case "pending":
+      // No-op; ack so partner stops retrying.
+      return c.json({ ok: true, applied: false });
+    default:
+      console.warn("[webhooks/pjp] unknown status:", event.status);
+      return c.json({ error: "unknown_status" }, 400);
+  }
+
+  // Idempotent update: only flip if not already terminal. We key on the
+  // internal tx_id (which we passed as external_id when initiating PJP).
+  const { error, data } = await supabaseAdmin
+    .from("transactions")
+    .update({
+      status: nextStatus,
+      pjp_id: event.pjp_id,
+      pjp_settled_at: settledAt,
+      failure_reason: failureReason,
+    })
+    .eq("id", event.external_id)
+    .in("status", ["pjp_pending", "solana_confirmed"]) // don't downgrade terminal rows
+    .select("id, status");
+
+  if (error) {
+    console.error("[webhooks/pjp] update failed:", error);
+    return c.json({ error: "update_failed" }, 500);
+  }
+
+  return c.json({
+    ok: true,
+    applied: data && data.length > 0,
+    new_status: data?.[0]?.status ?? null,
+  });
+});
