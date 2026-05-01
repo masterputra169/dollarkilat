@@ -33,6 +33,15 @@ export interface PJPInitiateInput {
   merchant_id: string | null;
   /** Optional remarks shown on partner dashboard. */
   remarks?: string;
+  /**
+   * Bank routing for partners that disburse to bank accounts (Flip, DOKU
+   * disbursement, etc). Required when PJP_PARTNER=flip; ignored by mock.
+   */
+  merchant?: {
+    bank_code: string;
+    account_number: string;
+    account_holder: string;
+  };
 }
 
 export interface PJPInitiateResponse {

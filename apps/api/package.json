@@ -13,7 +13,9 @@
     "typecheck": "tsc --noEmit",
     "fee-payer:generate": "tsx scripts/generate-fee-payer.ts",
     "treasury:setup": "tsx --env-file=.env.local scripts/setup-treasury.ts",
-    "treasury:withdraw": "tsx --env-file=.env.local scripts/treasury-withdraw.ts"
+    "treasury:withdraw": "tsx --env-file=.env.local scripts/treasury-withdraw.ts",
+    "qris:gen": "tsx scripts/generate-qris.ts",
+    "pjp:poll": "tsx --env-file=.env.local scripts/pjp-poll.ts"
   },
   "dependencies": {
     "@dollarkilat/shared": "*",

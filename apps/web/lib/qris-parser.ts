@@ -71,7 +71,7 @@ export function parseQRIS(input: string): QRISDecoded {
   if (typeof input !== "string" || input.length < 20) {
     throw new QRISParseError("empty_input", "QRIS string kosong atau terlalu pendek");
   }
-  const trimmed = input.trim();
+  const trimmed = sanitizeQRISString(input);
 
   // CRC check first — fail fast on tampered/corrupted QR.
   verifyCRC(trimmed);
@@ -196,7 +196,9 @@ function extractMerchantInfo(tags: Record<string, string>): {
     if (!guid) continue;
     return {
       acquirer: guid,
-      merchant_id: sub["02"] ?? sub["01"] ?? null,
+      // QRIS national (GUID "ID.CO.QRIS.WWW") puts NMID di sub 01.
+      // Sub 02 = acquirer-specific merchant id (less stable). Prefer 01.
+      merchant_id: sub["01"] ?? sub["02"] ?? null,
     };
   }
   return { merchant_id: null, acquirer: null };
@@ -238,4 +240,27 @@ function crc16ccitt(s: string): string {
     }
   }
   return crc.toString(16).padStart(4, "0").toUpperCase();
+}
+
+/**
+ * Normalize QRIS strings pasted by users. Real-world copy/paste from chat
+ * apps and PDFs introduces invisible Unicode that breaks CRC even when the
+ * visible text looks identical:
+ *   - U+00A0 (non-breaking space) replaces ASCII space
+ *   - U+200B/U+200C/U+200D (zero-width space/joiner)
+ *   - U+FEFF (byte-order mark)
+ *   - Smart quotes / em-dashes inside merchant names
+ *   - CR/LF/TAB inside the string (e.g. line wrap from email)
+ *
+ * We coerce these back to plain ASCII space (or strip), trim ends, and
+ * collapse repeated spaces. After this, two visually-identical strings
+ * also become byte-identical → CRC checks consistently.
+ */
+function sanitizeQRISString(s: string): string {
+  return s
+    .replace(/﻿/g, "") // BOM
+    .replace(/[​-‍]/g, "") // zero-width
+    .replace(/ /g, " ") // nbsp → space
+    .replace(/[\r\n\t]/g, "") // strip newlines/tabs (paste artifacts)
+    .trim();
 }

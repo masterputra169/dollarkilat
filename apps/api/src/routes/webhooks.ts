@@ -32,6 +32,17 @@ webhooks.post("/pjp", async (c) => {
 
   const event = provider.parseWebhook(headers, rawBody);
   if (!event) {
+    // Debug logging — temporary, helps diagnose signature mismatch.
+    // Remove after partner integration is validated.
+    console.warn("[webhooks/pjp] signature/payload rejected\n", {
+      method: c.req.method,
+      url: c.req.url,
+      // FULL header dump — exposes any custom auth header partner uses.
+      // Note: tokens included; remove this log block before production.
+      headers,
+      // FULL body so we see exact JSON shape from partner.
+      body: rawBody,
+    });
     // Either signature failed or payload is malformed. We answer 401 so
     // partners can retry with corrected signature; mock stops retrying.
     return c.json({ error: "invalid_signature_or_payload" }, 401);
@@ -73,23 +84,60 @@ webhooks.post("/pjp", async (c) => {
       return c.json({ error: "unknown_status" }, 400);
   }
 
-  // Idempotent update: only flip if not already terminal. We key on the
-  // internal tx_id (which we passed as external_id when initiating PJP).
-  const { error, data } = await supabaseAdmin
-    .from("transactions")
-    .update({
-      status: nextStatus,
-      pjp_id: event.pjp_id,
-      pjp_settled_at: settledAt,
-      failure_reason: failureReason,
-    })
-    .eq("id", event.external_id)
-    .in("status", ["pjp_pending", "solana_confirmed"]) // don't downgrade terminal rows
-    .select("id, status");
+  // Match strategy:
+  //   1. Primary: by `pjp_id` (Flip's own disbursement id) — we persisted
+  //      it on initiate response. Most reliable match because partner echoes
+  //      it verbatim in every callback.
+  //   2. Fallback: by `id` (our UUID, which we passed in `remark`). Many
+  //      partners truncate remark — Flip caps at 18 chars — so this only
+  //      works for partners that preserve full string.
+  //
+  // Flip dashboard "Test Callback" sends remark="Callback testing remark"
+  // and id=123 (placeholder), neither of which match real txs. Our pjp_id
+  // lookup just returns 0 rows for those — handled gracefully.
+
+  let updateRes;
+  if (event.pjp_id) {
+    updateRes = await supabaseAdmin
+      .from("transactions")
+      .update({
+        status: nextStatus,
+        pjp_settled_at: settledAt,
+        failure_reason: failureReason,
+      })
+      .eq("pjp_id", event.pjp_id)
+      .in("status", ["pjp_pending", "solana_confirmed"])
+      .select("id, status");
+  } else {
+    // No pjp_id from event — try external_id as UUID fallback.
+    const UUID_RE =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!UUID_RE.test(event.external_id)) {
+      console.warn(
+        `[webhooks/pjp] no pjp_id and external_id "${event.external_id}" not a UUID — likely a "Test Callback". Acknowledging without DB update.`,
+      );
+      return c.json({ ok: true, applied: false, reason: "test_callback" });
+    }
+    updateRes = await supabaseAdmin
+      .from("transactions")
+      .update({
+        status: nextStatus,
+        pjp_id: event.pjp_id,
+        pjp_settled_at: settledAt,
+        failure_reason: failureReason,
+      })
+      .eq("id", event.external_id)
+      .in("status", ["pjp_pending", "solana_confirmed"])
+      .select("id, status");
+  }
+  const { error, data } = updateRes;
 
   if (error) {
     console.error("[webhooks/pjp] update failed:", error);
-    return c.json({ error: "update_failed" }, 500);
+    // Return 200 anyway — partner webhooks retry on non-2xx, and we
+    // already have the full event in our logs for manual reconciliation.
+    // Flagging 500 just causes retry storms without fixing the issue.
+    return c.json({ ok: false, error: "update_failed", code: error.code }, 200);
   }
 
   return c.json({

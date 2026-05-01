@@ -10,6 +10,7 @@ import { sponsorTx } from "./routes/sponsor-tx.js";
 import { consent } from "./routes/consent.js";
 import { webhooks } from "./routes/webhooks.js";
 import { balance } from "./routes/balance.js";
+import { merchants } from "./routes/merchants.js";
 import { rate } from "./routes/rate.js";
 import { users } from "./routes/users.js";
 
@@ -35,6 +36,7 @@ app.route("/sponsor-tx", sponsorTx);
 app.route("/consent", consent);
 app.route("/webhooks", webhooks);
 app.route("/balance", balance);
+app.route("/merchants", merchants);
 app.route("/rate", rate);
 
 app.onError((err, c) => {

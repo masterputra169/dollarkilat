@@ -67,7 +67,10 @@ interface StoredQuote {
   app_fee_idr: string;
   exchange_rate: string;
   merchant_name: string;
+  /** NMID extracted from the QRIS itself (e.g. "ID2024..."). */
   merchant_id: string | null;
+  /** UUID of a claimed merchant in our DB (set when NMID matches a row). */
+  merchant_db_id: string | null;
   acquirer: string | null;
   unsigned_tx_base64: string;
   fee_payer_address: string;
@@ -244,6 +247,24 @@ qris.post("/quote", zValidator("json", QuoteRequestSchema), async (c) => {
     );
   }
 
+  // 6.5 — Lookup claimed merchant by NMID. If NMID matches a row in our
+  // merchants table, the eventual transaction will link to that merchant's
+  // owner so they see the income on their merchant dashboard.
+  let merchantDbId: string | null = null;
+  if (decoded.merchant_id) {
+    const { data: merchantRow, error: mErr } = await supabaseAdmin
+      .from("merchants")
+      .select("id")
+      .eq("nmid", decoded.merchant_id.toUpperCase())
+      .maybeSingle();
+    if (mErr) {
+      console.error("[qris/quote] merchant nmid lookup failed:", mErr);
+      // Non-fatal — payment still goes through, just no merchant link.
+    } else if (merchantRow) {
+      merchantDbId = merchantRow.id as string;
+    }
+  }
+
   // 7. Persist quote in-memory
   const now = Date.now();
   const stored: StoredQuote = {
@@ -259,6 +280,7 @@ qris.post("/quote", zValidator("json", QuoteRequestSchema), async (c) => {
     exchange_rate: rate.rate,
     merchant_name: decoded.merchant_name,
     merchant_id: decoded.merchant_id,
+    merchant_db_id: merchantDbId,
     acquirer: decoded.acquirer,
     unsigned_tx_base64: built.unsignedTxBase64,
     fee_payer_address: built.feePayerAddress.toString(),
@@ -356,9 +378,10 @@ qris.post("/pay", zValidator("json", PayRequestSchema), async (c) => {
       exchange_rate: quote.exchange_rate,
       merchant_name: quote.merchant_name,
       merchant_id: quote.merchant_id,
+      merchant_db_id: quote.merchant_db_id,
       acquirer: quote.acquirer,
       fee_payer_pubkey: quote.fee_payer_address,
-      pjp_partner: "mock",
+      pjp_partner: getPJP().name,
     });
   if (insertRes.error) {
     console.error("[qris/pay] tx insert failed:", insertRes.error);
@@ -398,9 +421,35 @@ qris.post("/pay", zValidator("json", PayRequestSchema), async (c) => {
     })
     .eq("id", tx_id);
 
-  // Notify PJP partner (mock) — fire-and-record. We don't wait for IDR
-  // settlement; PJP webhook (Day 8) flips the row to "completed".
+  // Notify PJP partner — fire-and-record. We don't wait for IDR settlement;
+  // PJP webhook flips the row to "completed". When PJP_PARTNER=flip and we
+  // have a claimed merchant with bank info, pass it through; otherwise the
+  // adapter will reject (and we keep status=solana_confirmed for manual
+  // reconciliation later).
   try {
+    let merchantContext:
+      | { bank_code: string; account_number: string; account_holder: string }
+      | undefined;
+
+    if (quote.merchant_db_id) {
+      const { data: mRow } = await supabaseAdmin
+        .from("merchants")
+        .select("bank_code, account_number, account_holder")
+        .eq("id", quote.merchant_db_id)
+        .maybeSingle();
+      if (
+        mRow?.bank_code &&
+        mRow?.account_number &&
+        mRow?.account_holder
+      ) {
+        merchantContext = {
+          bank_code: mRow.bank_code as string,
+          account_number: mRow.account_number as string,
+          account_holder: mRow.account_holder as string,
+        };
+      }
+    }
+
     const pjp = getPJP();
     const pjpRes = await pjp.initiate({
       external_id: tx_id,
@@ -408,6 +457,7 @@ qris.post("/pay", zValidator("json", PayRequestSchema), async (c) => {
       qris_string: quote.qris_string,
       merchant_name: quote.merchant_name,
       merchant_id: quote.merchant_id,
+      merchant: merchantContext,
     });
     await supabaseAdmin
       .from("transactions")
@@ -417,9 +467,24 @@ qris.post("/pay", zValidator("json", PayRequestSchema), async (c) => {
       })
       .eq("id", tx_id);
   } catch (err) {
-    console.error("[qris/pay] PJP initiate failed (non-fatal):", err);
-    // Solana side already settled. Mark as solana_confirmed and let manual
-    // reconciliation (or a Day 8 retry job) push to PJP later.
+    const code = (err as Error & { code?: string }).code;
+    // Differentiate config gaps (merchant missing bank info) from real
+    // partner outages — easier to triage in logs.
+    if (code === "merchant_bank_info_missing") {
+      console.warn(
+        "[qris/pay] PJP skipped — merchant has no bank routing. Solana settled OK; payment counts in our DB but won't disburse to merchant bank until bank_code/account_number/account_holder are set. (non-fatal)",
+      );
+      await supabaseAdmin
+        .from("transactions")
+        .update({
+          failure_reason: "pjp_skipped_no_bank_info",
+        })
+        .eq("id", tx_id);
+    } else {
+      console.error("[qris/pay] PJP initiate failed (non-fatal):", err);
+    }
+    // Solana side already settled. Row stays at solana_confirmed for
+    // manual reconciliation (or a retry job).
   }
 
   // Burn quote (replay defense) — done LAST so failure paths above can let

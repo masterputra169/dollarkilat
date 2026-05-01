@@ -229,6 +229,10 @@ export function QRScanner({ onDecode, onError, autoStart = true }: Props) {
       type="button"
       onClick={() => {
         setError(null);
+        // Camera startup may have left `busy=true` if it was aborted mid-flight
+        // when the user switched away. Reset so non-camera modes (Manual, Upload)
+        // don't see a phantom-disabled submit button.
+        setBusy(false);
         if (mode === "camera" && m !== "camera") stopCamera();
         setMode(m);
       }}
@@ -286,8 +290,8 @@ export function QRScanner({ onDecode, onError, autoStart = true }: Props) {
           <button
             type="button"
             onClick={handleManualSubmit}
-            disabled={busy}
-            className="btn-gradient-brand inline-flex h-10 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-medium text-white disabled:opacity-60"
+            disabled={busy || manualText.trim().length < 50}
+            className="btn-gradient-brand inline-flex h-10 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
             Decode
           </button>

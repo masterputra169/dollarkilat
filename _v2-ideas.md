@@ -22,3 +22,55 @@
 - Aturan main: tulis di tabel di atas, jangan langsung code.
 - Kalau partner suggest fitur baru, bilang "catat dulu, kembali ke task hari ini".
 - Reset disiplin: baca `docs/09-vibe-coding-rules.md` § "Stop scope creep".
+
+---
+
+## 🛣️ Production Readiness Checklist — Real Merchant Settlement
+
+> Hackathon MVP ship dengan **mock PJP + simulated merchant settlement**.
+> Untuk go-live dengan real IDR routing ke rekening merchant, butuh
+> milestone berikut. Diurutkan by dependency.
+
+### Phase 1 — Legal Foundation (post-fundraising)
+
+- [ ] **Bikin PT** — biaya ~Rp 5-10 juta, ~2 minggu via notaris
+- [ ] **NPWP perusahaan** — derivative dari PT, ~1 minggu
+- [ ] **Bank account corporate** — buat hold IDR settlement (BCA/Mandiri Bisnis)
+- [ ] **Compliance officer (atau hire fractional)** — wajib oleh BI untuk fintech operasional
+- [ ] **Privacy policy + ToS** — review lawyer, fokus ke data user QRIS + USDC
+
+### Phase 2 — PJP Partnership
+
+- [ ] **Flip Bisnis production onboarding** (atau DOKU) — submit PT docs + sign agreement
+- [ ] **Dapet production API key** — typically butuh KYC review 2-4 minggu
+- [ ] **Pre-funded escrow account di partner** — simpan IDR float untuk disbursement
+- [ ] **Webhook callback URL** — production HTTPS endpoint kita, register di partner dashboard
+- [ ] **Settlement reconciliation flow** — daily/weekly compare partner ledger vs DB kita
+
+### Phase 3 — Code Migration (1-2 hari setelah keys siap)
+
+- [ ] **Implement `apps/api/src/lib/pjp/flip.ts`** (atau `doku.ts`) sesuai PJPProvider interface
+- [ ] **Test E2E di partner sandbox** — verify request shape, webhook signature
+- [ ] **Switch `PJP_PARTNER=mock` → `flip` / `doku`** di production env
+- [ ] **Update `pjp_partner` enum di `transactions` table** kalau perlu
+- [ ] **Liability handling** — backend retry + manual reconciliation cron untuk failed PJP settlements
+
+### Phase 4 — Merchant Verification
+
+- [ ] **Verify merchant ownership** — opsi:
+  - **A.** SMS verification ke nomor HP terdaftar di QRIS (cek BI registry → kirim OTP)
+  - **B.** Bank account verification — merchant kasih akun bank, kita cocokin dengan QRIS-registered bank
+  - **C.** Manual review — submit foto + dokumen merchant
+- [ ] **Flip `is_verified=true`** di merchants table setelah verified
+- [ ] **Settlement gating** — UNVERIFIED merchant gak bisa terima real IDR (tetep simulation only)
+- [ ] **Verified-only badge** di merchant dashboard
+
+### Phase 5 — Beta Launch
+
+- [ ] **Internal alpha** — 5 merchant kawan, real Rp 1k-10k transactions, full reconciliation
+- [ ] **Closed beta** — 20-50 merchants, batas tx Rp 100k/hari per merchant
+- [ ] **Public launch** — remove caps, full marketing
+
+### Estimated timeline: **2-4 bulan dari fundraising**
+
+Critical path: PT setup (2-3 minggu) → PJP onboard KYC (3-4 minggu) → integration test (1-2 minggu) → beta (2-4 minggu).

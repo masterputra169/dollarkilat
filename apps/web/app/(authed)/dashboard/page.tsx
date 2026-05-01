@@ -11,10 +11,10 @@ import {
   ArrowUpFromLine,
   Check,
   Copy,
-  History,
   LogOut,
   QrCode,
   RefreshCcw,
+  Store,
 } from "lucide-react";
 import type {
   BalanceResponse,
@@ -97,28 +97,58 @@ export default function DashboardPage() {
   const fetchBalanceAndRate = useCallback(async () => {
     if (!solanaAddress) return;
     setBalanceLoading(true);
-    setBalanceError(null);
     try {
       // Token may not be ready immediately after auth — Privy provisions
-      // the wallet list first, then mints the access token. The polling
-      // effect will retry; just skip this tick silently to avoid a
-      // bogus error surface in the UI.
+      // the wallet list first, then mints the access token. Skip silently
+      // when not ready; the next polling tick will retry.
       const token = await getAccessToken();
 
-      // Rate is a public endpoint, fetch it regardless of token availability.
-      const [bal, r] = await Promise.all([
+      // Use allSettled so partial outages (e.g. CoinGecko rate-limit) still
+      // surface the half that worked. Only flag balanceError if BOTH failed
+      // — otherwise show whatever we got plus the previous-good for the
+      // other field.
+      const results = await Promise.allSettled([
         token
           ? api<BalanceResponse>(`/balance/${solanaAddress}`, { token })
           : Promise.resolve(null),
         api<RateResponse>("/rate/usdc-idr"),
       ]);
-      if (bal) setBalance(bal);
-      setRate(r);
+      const balResult = results[0];
+      const rateResult = results[1];
+
+      if (balResult.status === "fulfilled" && balResult.value) {
+        setBalance(balResult.value);
+      }
+      if (rateResult.status === "fulfilled") {
+        setRate(rateResult.value);
+      }
+
+      const balErr =
+        balResult.status === "rejected" ? errCode(balResult.reason) : null;
+      const rateErr =
+        rateResult.status === "rejected" ? errCode(rateResult.reason) : null;
+
+      if (balErr && rateErr) {
+        setBalanceError(`${balErr} / ${rateErr}`);
+        console.error(
+          "[dashboard] both fetches failed:",
+          balResult,
+          rateResult,
+        );
+      } else if (balErr) {
+        // Balance failed but rate ok — surface only when sustained
+        // (otherwise transient errors create noise).
+        setBalanceError(balErr);
+        console.warn("[dashboard] balance fetch failed:", balErr);
+      } else if (rateErr) {
+        // Rate-only fail is fine — saldo USDC tetep akurat,
+        // IDR equivalent pakai last-known rate (or 0 if first call).
+        console.warn("[dashboard] rate fetch failed:", rateErr);
+        setBalanceError(null);
+      } else {
+        setBalanceError(null);
+      }
       setLastUpdated(new Date());
-    } catch (err) {
-      const code = err instanceof ApiError ? err.code : "unknown";
-      console.error("[dashboard] balance/rate failed:", err);
-      setBalanceError(code);
     } finally {
       setBalanceLoading(false);
     }
@@ -333,11 +363,11 @@ export default function DashboardPage() {
             href="/receive"
           />
           <ActionTile
-            icon={<History className="size-5" />}
-            label="Riwayat"
-            badge="Segera"
+            icon={<Store className="size-5" />}
+            label="Merchant"
+            badge="Baru"
             tone="amber"
-            disabled
+            href="/merchant"
           />
         </div>
 
@@ -360,6 +390,11 @@ export default function DashboardPage() {
       </div>
     </main>
   );
+}
+
+function errCode(err: unknown): string {
+  if (err instanceof ApiError) return err.code;
+  return (err as Error)?.message ?? "unknown";
 }
 
 function formatRelativeTime(date: Date): string {

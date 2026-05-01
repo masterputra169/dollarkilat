@@ -65,3 +65,6 @@ yarn-error.log*
 .playwright-mcp/
 ss/
 /*.png
+
+# Local debug dumps (may contain tokens, don't commit)
+/error/

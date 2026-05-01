@@ -46,7 +46,7 @@ export function parseQRIS(input: string): QRISDecoded {
   if (typeof input !== "string" || input.length < 20) {
     throw new QRISParseError("empty_input", "QRIS string kosong atau terlalu pendek");
   }
-  const trimmed = input.trim();
+  const trimmed = sanitizeQRISString(input);
   verifyCRC(trimmed);
   const tags = decodeTLV(trimmed);
 
@@ -146,7 +146,9 @@ function extractMerchantInfo(tags: Record<string, string>): {
     if (!guid) continue;
     return {
       acquirer: guid,
-      merchant_id: sub["02"] ?? sub["01"] ?? null,
+      // QRIS national (GUID "ID.CO.QRIS.WWW") puts NMID di sub 01.
+      // Sub 02 = acquirer-specific merchant id (less stable). Prefer 01.
+      merchant_id: sub["01"] ?? sub["02"] ?? null,
     };
   }
   return { merchant_id: null, acquirer: null };
@@ -180,4 +182,18 @@ function crc16ccitt(s: string): string {
     }
   }
   return crc.toString(16).padStart(4, "0").toUpperCase();
+}
+
+/**
+ * Normalize QRIS strings (clean invisible Unicode that breaks CRC).
+ * Mirror of frontend `sanitizeQRISString` — kept here so backend
+ * accepts the same inputs the user might POST.
+ */
+function sanitizeQRISString(s: string): string {
+  return s
+    .replace(/﻿/g, "") // BOM
+    .replace(/[​-‍]/g, "") // zero-width
+    .replace(/ /g, " ") // nbsp → space
+    .replace(/[\r\n\t]/g, "")
+    .trim();
 }

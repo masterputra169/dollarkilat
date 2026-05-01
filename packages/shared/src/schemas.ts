@@ -128,3 +128,75 @@ export const RateResponseSchema = z.object({
   cached_at: z.string().datetime(),
 });
 export type RateResponse = z.infer<typeof RateResponseSchema>;
+
+// ── Merchants ──────────────────────────────────────────────────
+export const MerchantSchema = z.object({
+  id: z.string().uuid(),
+  name: z.string(),
+  nmid: z.string(),
+  city: z.string().nullable(),
+  /** Verified against BI QRIS registry / partner KYC. False = demo / unverified. */
+  is_verified: z.boolean(),
+  /** Bank routing for real PJP disbursement (optional; required when PJP_PARTNER=flip). */
+  bank_code: z.string().nullable(),
+  account_number: z.string().nullable(),
+  account_holder: z.string().nullable(),
+  created_at: z.string().datetime(),
+});
+export type Merchant = z.infer<typeof MerchantSchema>;
+
+export const MerchantClaimRequestSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  nmid: z
+    .string()
+    .trim()
+    .min(8)
+    .max(40)
+    // QRIS NMIDs are alphanumeric (some include "ID" prefix or numeric only).
+    .regex(/^[A-Z0-9]+$/i, "NMID hanya huruf/angka"),
+  city: z.string().trim().min(1).max(80).optional(),
+  // Optional bank info — required only when settling via Flip.
+  bank_code: z
+    .string()
+    .trim()
+    .min(2)
+    .max(20)
+    .regex(/^[a-z_]+$/, "bank_code huruf kecil + underscore aja")
+    .optional(),
+  account_number: z.string().trim().min(4).max(40).optional(),
+  account_holder: z.string().trim().min(2).max(80).optional(),
+});
+export type MerchantClaimRequest = z.infer<typeof MerchantClaimRequestSchema>;
+
+export const MerchantTransactionSchema = z.object({
+  id: z.string().uuid(),
+  amount_idr: z.number().int(),
+  amount_usdc_lamports: z.string(),
+  status: z.enum([
+    "created",
+    "user_signing",
+    "solana_pending",
+    "solana_confirmed",
+    "pjp_pending",
+    "completed",
+    "failed_settlement",
+    "rejected",
+  ]),
+  signature: z.string().nullable(),
+  created_at: z.string().datetime(),
+  pjp_settled_at: z.string().datetime().nullable(),
+});
+export type MerchantTransaction = z.infer<typeof MerchantTransactionSchema>;
+
+export const MerchantDashboardResponseSchema = z.object({
+  merchant: MerchantSchema.nullable(),
+  // Aggregates
+  total_today_idr: z.number().int(),
+  total_month_idr: z.number().int(),
+  count_today: z.number().int(),
+  // Last 50 incoming
+  recent: z.array(MerchantTransactionSchema),
+});
+export type MerchantDashboardResponse = z.infer<
+  typeof MerchantDashboardResponseSchema
+>;

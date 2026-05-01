@@ -35,9 +35,20 @@ const EnvSchema = z.object({
 
   // PJP partner
   PJP_PARTNER: z.enum(["mock", "doku", "flip"]).default("mock"),
+  // Generic creds; per-partner mapping:
+  //   - flip:  PJP_API_KEY      = Flip "secret_key" (Basic auth user)
+  //            PJP_WEBHOOK_SECRET = Flip "validation token" (x-callback-token)
+  //   - doku:  TBD when implemented
   PJP_API_KEY: z.string().optional(),
   PJP_API_SECRET: z.string().optional(),
   PJP_WEBHOOK_SECRET: z.string().optional(),
+  // Flip-specific. Default to v2 sandbox (verified via /general/banks
+  // returning 401 = endpoint exists, just needs auth). Production base
+  // URL = https://bigflip.id/api/v2 (or v3 depending on tier).
+  FLIP_BASE_URL: z
+    .string()
+    .url()
+    .default("https://bigflip.id/big_sandbox_api/v2"),
 });
 
 export type Env = z.infer<typeof EnvSchema>;
@@ -83,6 +94,9 @@ function loadEnv(): Env {
       PJP_API_KEY: process.env.PJP_API_KEY,
       PJP_API_SECRET: process.env.PJP_API_SECRET,
       PJP_WEBHOOK_SECRET: process.env.PJP_WEBHOOK_SECRET,
+      FLIP_BASE_URL:
+        process.env.FLIP_BASE_URL ||
+        "https://bigflip.id/big_sandbox_api/v2",
     });
   }
   return parsed.data;

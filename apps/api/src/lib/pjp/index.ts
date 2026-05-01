@@ -5,6 +5,7 @@
  */
 
 import { env } from "../../env.js";
+import { FlipPJP } from "./flip.js";
 import { MockPJP } from "./mock.js";
 import type { PJPProvider } from "./types.js";
 
@@ -16,12 +17,26 @@ export function getPJP(): PJPProvider {
     case "mock":
       _provider = new MockPJP(env.PJP_WEBHOOK_SECRET ?? "mock-secret-dev");
       break;
+    case "flip": {
+      const secretKey = env.PJP_API_KEY;
+      const validationToken = env.PJP_WEBHOOK_SECRET;
+      if (!secretKey || !validationToken) {
+        throw new Error(
+          "PJP_PARTNER=flip but missing PJP_API_KEY (Flip secret_key) or PJP_WEBHOOK_SECRET (Flip validation token). Fill apps/api/.env.local.",
+        );
+      }
+      _provider = new FlipPJP({
+        baseUrl: env.FLIP_BASE_URL,
+        secretKey,
+        validationToken,
+      });
+      break;
+    }
     case "doku":
-    case "flip":
-      // Real providers — implementations land post-hackathon. Failing fast
-      // here beats silently degrading to mock in production.
+      // Implementation lands post-hackathon. Failing fast beats silent
+      // degradation to mock in production.
       throw new Error(
-        `PJP_PARTNER=${env.PJP_PARTNER} not yet implemented; only "mock" is supported in MVP.`,
+        `PJP_PARTNER=${env.PJP_PARTNER} not yet implemented; use "mock" or "flip".`,
       );
     default: {
       // Exhaustiveness guard — TypeScript already restricts the union, but
