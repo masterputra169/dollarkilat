@@ -176,20 +176,29 @@ transactions.post("/scan-deposits", async (c) => {
   const newOnes = deposits.filter((d) => !existingSet.has(d.signature));
   if (newOnes.length === 0) return c.json({ inserted: 0 });
 
+  // Sentinel values for fields that are NOT NULL in the original schema
+  // but semantically meaningless for deposits (no quote, no fee payer, etc).
+  // Migration 0006_deposit_support.sql relaxes these constraints — but until
+  // it's applied, these sentinels keep inserts working. Frontend checks
+  // `type === 'deposit'` to render differently, so sentinel values never
+  // surface in UI.
+  const DEPOSIT_QUOTE_SENTINEL = "00000000-0000-0000-0000-000000000000";
+  const DEPOSIT_MERCHANT_SENTINEL = "Deposit Solana";
+
   const rows = newOnes.map((d) => ({
     user_id: userId,
-    quote_id: null,
+    quote_id: DEPOSIT_QUOTE_SENTINEL,
     type: "deposit" as const,
     status: "completed" as const,
-    amount_idr: null,
+    amount_idr: 0,
     amount_usdc_lamports: Number(d.amount_lamports),
-    app_fee_idr: null,
-    exchange_rate: null,
-    merchant_name: null,
+    app_fee_idr: 0,
+    exchange_rate: "0",
+    merchant_name: DEPOSIT_MERCHANT_SENTINEL,
     merchant_id: null,
     acquirer: null,
     signature: d.signature,
-    fee_payer_pubkey: null,
+    fee_payer_pubkey: "external",
     pjp_partner: "mock",
     pjp_id: null,
     pjp_settled_at: d.block_time

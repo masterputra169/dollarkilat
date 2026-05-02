@@ -1,11 +1,15 @@
 -- ─────────────────────────────────────────────────────────────
--- 0006_deposit_support.sql — Day 8
+-- 0006_deposit_support.sql — Day 8 (OPTIONAL — see note below)
 -- Loosen NOT NULL constraints to support type='deposit' rows that
 -- come from on-chain Helius polling (no quote, no fee payer, no PJP).
 --
 -- Existing 'qris_payment' rows stay valid — their NOT NULL fields
 -- remain populated. New code paths just allow these columns to be NULL
 -- when the row represents an inbound USDC transfer detected on-chain.
+--
+-- ⚠️  OPTIONAL — code uses sentinel values for these fields when the
+-- migration isn't applied (see routes/transactions.ts scan-deposits).
+-- Apply this migration to clean up NULLs vs sentinels. Idempotent.
 -- ─────────────────────────────────────────────────────────────
 
 -- quote_id: deposits have no quote
