@@ -1,8 +1,6 @@
-"use client";
-
-import { Wifi, WifiOff } from "lucide-react";
+import { WifiOff } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
-import { Button } from "@/components/ui/button";
+import { ReloadButton } from "./reload-button";
 
 export default function OfflinePage() {
   return (
@@ -34,15 +32,7 @@ export default function OfflinePage() {
         </p>
 
         <div className="mt-7 flex flex-col gap-2.5 self-stretch sm:flex-row sm:justify-center">
-          <Button
-            variant="primary"
-            leftIcon={<Wifi className="size-4" />}
-            onClick={() => {
-              if (typeof window !== "undefined") window.location.reload();
-            }}
-          >
-            Coba lagi
-          </Button>
+          <ReloadButton />
         </div>
 
         <ul className="mt-8 self-stretch space-y-2 text-left text-[13px] text-[var(--color-fg-muted)]">
