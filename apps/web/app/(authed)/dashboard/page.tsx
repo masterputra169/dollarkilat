@@ -166,12 +166,25 @@ export default function DashboardPage() {
   }, [solanaAddress, getAccessToken]);
 
   // Recent transactions — fetched once on mount and on manual refresh.
-  // Not on the 30s poll loop to keep API load low; user pulls /history for fresh.
+  // Triggers a deposit-scan first so on-chain incoming USDC shows up
+  // before listing. Soft-fails on either step.
   const fetchRecentTx = useCallback(async () => {
     if (!authenticated) return;
     try {
       const token = await getAccessToken();
       if (!token) return;
+
+      // Fire-and-forget deposit scan. Don't await its completion strictly —
+      // but we want the list to reflect new deposits when they exist.
+      try {
+        await api<{ inserted: number }>("/transactions/scan-deposits", {
+          method: "POST",
+          token,
+        });
+      } catch (scanErr) {
+        console.warn("[dashboard] deposit scan failed:", scanErr);
+      }
+
       const res = await api<TransactionListResponse>(
         "/transactions?limit=5",
         { token },
@@ -445,37 +458,66 @@ export default function DashboardPage() {
               </Link>
             </div>
             <ul className="divide-y divide-[var(--color-border-subtle)]">
-              {recentTx.map((tx) => (
-                <li key={tx.id}>
-                  <Link
-                    href={`/history/${tx.id}`}
-                    className="group flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--color-bg-subtle)] sm:px-6"
-                  >
-                    <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-bg-subtle)] text-[var(--color-fg-subtle)]">
-                      <Receipt className="size-4" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="truncate text-sm font-medium text-[var(--color-fg)]">
-                          {tx.merchant_name || "Merchant tanpa nama"}
-                        </p>
-                        <p className="shrink-0 font-mono text-sm font-semibold tabular-nums text-[var(--color-fg)]">
-                          {formatRupiah(tx.amount_idr)}
-                        </p>
+              {recentTx.map((tx) => {
+                const isDeposit = tx.type === "deposit";
+                const usdc = (Number(tx.amount_usdc_lamports) / 1_000_000)
+                  .toFixed(2);
+                const label = isDeposit
+                  ? "Deposit Solana"
+                  : tx.merchant_name || "Merchant tanpa nama";
+                const amount = isDeposit
+                  ? `+${usdc} USDC`
+                  : tx.amount_idr !== null
+                    ? formatRupiah(tx.amount_idr)
+                    : "—";
+                return (
+                  <li key={tx.id}>
+                    <Link
+                      href={`/history/${tx.id}`}
+                      className="group flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--color-bg-subtle)] sm:px-6"
+                    >
+                      <div
+                        className={`flex size-9 shrink-0 items-center justify-center rounded-full ${
+                          isDeposit
+                            ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+                            : "bg-[var(--color-bg-subtle)] text-[var(--color-fg-subtle)]"
+                        }`}
+                      >
+                        {isDeposit ? (
+                          <ArrowDownToLine className="size-4" />
+                        ) : (
+                          <Receipt className="size-4" />
+                        )}
                       </div>
-                      <div className="mt-0.5 flex items-center justify-between gap-2">
-                        <Pill tone={statusToTone(tx.status)}>
-                          {statusToLabel(tx.status)}
-                        </Pill>
-                        <span className="shrink-0 text-[11px] text-[var(--color-fg-subtle)]">
-                          {formatTxRelative(tx.created_at)}
-                        </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="truncate text-sm font-medium text-[var(--color-fg)]">
+                            {label}
+                          </p>
+                          <p
+                            className={`shrink-0 font-mono text-sm font-semibold tabular-nums ${
+                              isDeposit
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-[var(--color-fg)]"
+                            }`}
+                          >
+                            {amount}
+                          </p>
+                        </div>
+                        <div className="mt-0.5 flex items-center justify-between gap-2">
+                          <Pill tone={isDeposit ? "success" : statusToTone(tx.status)}>
+                            {isDeposit ? "Diterima" : statusToLabel(tx.status)}
+                          </Pill>
+                          <span className="shrink-0 text-[11px] text-[var(--color-fg-subtle)]">
+                            {formatTxRelative(tx.created_at)}
+                          </span>
+                        </div>
                       </div>
-                    </div>
-                    <ChevronRight className="size-4 shrink-0 text-[var(--color-fg-faint)] transition-transform group-hover:translate-x-0.5" />
-                  </Link>
-                </li>
-              ))}
+                      <ChevronRight className="size-4 shrink-0 text-[var(--color-fg-faint)] transition-transform group-hover:translate-x-0.5" />
+                    </Link>
+                  </li>
+                );
+              })}
             </ul>
           </Card>
         )}

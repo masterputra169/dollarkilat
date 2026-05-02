@@ -217,15 +217,17 @@ export const TransactionStatusEnum = z.enum([
   "rejected",
 ]);
 
+// Deposit rows (type='deposit') leave the payment-only fields nullable —
+// no merchant, no quote, no app fee, no exchange rate snapshot.
 export const UserTransactionSchema = z.object({
   id: z.string().uuid(),
   type: z.enum(["qris_payment", "deposit"]),
   status: TransactionStatusEnum,
-  amount_idr: z.number().int(),
+  amount_idr: z.number().int().nullable(),
   amount_usdc_lamports: z.string(),
-  app_fee_idr: z.number().int(),
-  exchange_rate: z.string(),
-  merchant_name: z.string(),
+  app_fee_idr: z.number().int().nullable(),
+  exchange_rate: z.string().nullable(),
+  merchant_name: z.string().nullable(),
   merchant_id: z.string().nullable(),
   acquirer: z.string().nullable(),
   signature: z.string().nullable(),

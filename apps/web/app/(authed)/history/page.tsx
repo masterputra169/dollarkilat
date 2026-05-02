@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
+  ArrowDownToLine,
   ArrowLeft,
   ChevronRight,
   Clock,
@@ -13,12 +14,13 @@ import {
   RefreshCcw,
   Receipt,
 } from "lucide-react";
+import BigNumber from "bignumber.js";
 import type {
   TransactionListResponse,
   UserTransaction,
 } from "@dollarkilat/shared";
 import { api, ApiError } from "@/lib/api";
-import { formatRupiah } from "@/lib/format";
+import { formatRupiah, formatUSDC } from "@/lib/format";
 import {
   groupToStatusCsv,
   statusToLabel,
@@ -62,6 +64,20 @@ export default function HistoryPage() {
       try {
         const token = await getAccessToken();
         if (!token) throw new Error("no access token");
+
+        // Trigger deposit scan on first page load (not on pagination, not on refresh).
+        // Idempotent — backend dedupes via signature unique constraint.
+        if (!opts.append && !opts.before) {
+          try {
+            await api<{ inserted: number }>(
+              "/transactions/scan-deposits",
+              { method: "POST", token },
+            );
+          } catch (scanErr) {
+            console.warn("[history] deposit scan failed:", scanErr);
+          }
+        }
+
         const params = new URLSearchParams();
         const statusCsv = groupToStatusCsv(filter);
         if (statusCsv) params.set("status", statusCsv);
@@ -218,7 +234,23 @@ export default function HistoryPage() {
 }
 
 function TxRow({ tx }: { tx: UserTransaction }) {
+  const isDeposit = tx.type === "deposit";
   const tone = statusToTone(tx.status);
+  const usdcAmount = new BigNumber(tx.amount_usdc_lamports)
+    .dividedBy(1_000_000)
+    .toFixed(2);
+  const primaryLabel = isDeposit
+    ? "Deposit Solana"
+    : tx.merchant_name || "Merchant tanpa nama";
+  const primaryAmount = isDeposit
+    ? `+${formatUSDC(usdcAmount)} USDC`
+    : tx.amount_idr !== null
+      ? formatRupiah(tx.amount_idr)
+      : "—";
+  const amountClass = isDeposit
+    ? "text-emerald-600 dark:text-emerald-400"
+    : "text-[var(--color-fg)]";
+
   return (
     <Link
       href={`/history/${tx.id}`}
@@ -226,21 +258,40 @@ function TxRow({ tx }: { tx: UserTransaction }) {
     >
       <Card className="transition-colors group-hover:bg-[var(--color-bg-subtle)]">
         <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[var(--color-bg-subtle)] text-[var(--color-fg-subtle)]">
-            <Receipt className="size-4" />
+          <div
+            className={`flex size-10 shrink-0 items-center justify-center rounded-full ${
+              isDeposit
+                ? "bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400"
+                : "bg-[var(--color-bg-subtle)] text-[var(--color-fg-subtle)]"
+            }`}
+          >
+            {isDeposit ? (
+              <ArrowDownToLine className="size-4" />
+            ) : (
+              <Receipt className="size-4" />
+            )}
           </div>
           <div className="min-w-0 flex-1">
             <div className="flex items-center justify-between gap-2">
               <p className="truncate text-sm font-medium text-[var(--color-fg)]">
-                {tx.merchant_name || "Merchant tanpa nama"}
+                {primaryLabel}
               </p>
-              <p className="shrink-0 font-mono text-sm font-semibold tabular-nums text-[var(--color-fg)]">
-                {formatRupiah(tx.amount_idr)}
+              <p
+                className={`shrink-0 font-mono text-sm font-semibold tabular-nums ${amountClass}`}
+              >
+                {primaryAmount}
               </p>
             </div>
             <div className="mt-1 flex items-center justify-between gap-2">
-              <Pill tone={tone} icon={tone === "warning" ? <Clock className="size-3" /> : undefined}>
-                {statusToLabel(tx.status)}
+              <Pill
+                tone={isDeposit ? "success" : tone}
+                icon={
+                  !isDeposit && tone === "warning" ? (
+                    <Clock className="size-3" />
+                  ) : undefined
+                }
+              >
+                {isDeposit ? "Diterima" : statusToLabel(tx.status)}
               </Pill>
               <span className="shrink-0 text-[11px] text-[var(--color-fg-subtle)]">
                 {formatTxRelative(tx.created_at)}

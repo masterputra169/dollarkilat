@@ -8,6 +8,7 @@ import type {
 } from "@dollarkilat/shared";
 import { authMiddleware, type AuthVariables } from "../middleware/auth.js";
 import { supabaseAdmin } from "../lib/supabase.js";
+import { fetchRecentDeposits } from "../lib/solana-deposits.js";
 
 export const transactions = new Hono<{ Variables: AuthVariables }>();
 
@@ -17,11 +18,11 @@ interface TxRow {
   id: string;
   type: string;
   status: string;
-  amount_idr: number;
+  amount_idr: number | null;
   amount_usdc_lamports: number;
-  app_fee_idr: number;
-  exchange_rate: string;
-  merchant_name: string;
+  app_fee_idr: number | null;
+  exchange_rate: string | null;
+  merchant_name: string | null;
   merchant_id: string | null;
   acquirer: string | null;
   signature: string | null;
@@ -128,6 +129,89 @@ transactions.get("/", zValidator("query", ListQuerySchema), async (c) => {
     next_cursor: hasMore ? (pageRows[pageRows.length - 1]?.created_at ?? null) : null,
   };
   return c.json(body);
+});
+
+/**
+ * POST /transactions/scan-deposits
+ *
+ * Trigger an on-chain scan of recent USDC transfers to the user's ATA.
+ * Idempotent — `signature` UNIQUE constraint dedupes; safe to call repeatedly.
+ *
+ * Returns count of newly-inserted deposit rows. Frontend uses this to know
+ * whether to re-fetch the recent activity list. Soft-fails on Helius outage
+ * (returns inserted=0 with error code; user-visible balance polling will
+ * eventually surface the deposit even without a row).
+ */
+transactions.post("/scan-deposits", async (c) => {
+  const userId = await getInternalUserId(c.get("privyUserId"));
+  if (!userId) return c.json({ error: "user_not_synced" }, 404);
+
+  const { data: u, error: uErr } = await supabaseAdmin
+    .from("users")
+    .select("solana_address")
+    .eq("id", userId)
+    .maybeSingle();
+  if (uErr || !u?.solana_address) {
+    return c.json({ inserted: 0, reason: "no_address" });
+  }
+
+  let deposits;
+  try {
+    deposits = await fetchRecentDeposits(u.solana_address as string, 15);
+  } catch (err) {
+    console.warn("[transactions/scan] helius failed:", (err as Error).message);
+    return c.json({ inserted: 0, error: "fetch_failed" });
+  }
+
+  if (deposits.length === 0) return c.json({ inserted: 0 });
+
+  // Filter signatures already in DB
+  const sigList = deposits.map((d) => d.signature);
+  const { data: existing } = await supabaseAdmin
+    .from("transactions")
+    .select("signature")
+    .in("signature", sigList);
+  const existingSet = new Set((existing ?? []).map((r) => r.signature));
+
+  const newOnes = deposits.filter((d) => !existingSet.has(d.signature));
+  if (newOnes.length === 0) return c.json({ inserted: 0 });
+
+  const rows = newOnes.map((d) => ({
+    user_id: userId,
+    quote_id: null,
+    type: "deposit" as const,
+    status: "completed" as const,
+    amount_idr: null,
+    amount_usdc_lamports: Number(d.amount_lamports),
+    app_fee_idr: null,
+    exchange_rate: null,
+    merchant_name: null,
+    merchant_id: null,
+    acquirer: null,
+    signature: d.signature,
+    fee_payer_pubkey: null,
+    pjp_partner: "mock",
+    pjp_id: null,
+    pjp_settled_at: d.block_time
+      ? new Date(d.block_time * 1000).toISOString()
+      : null,
+    failure_reason: null,
+  }));
+
+  const { error: insertErr } = await supabaseAdmin
+    .from("transactions")
+    .insert(rows);
+
+  if (insertErr) {
+    // 23505 = unique_violation on signature. Race with another concurrent
+    // scan (or webhook in v2). Safe to ignore.
+    if (insertErr.code !== "23505") {
+      console.error("[transactions/scan] insert failed:", insertErr);
+      return c.json({ inserted: 0, error: insertErr.code }, 500);
+    }
+  }
+
+  return c.json({ inserted: newOnes.length });
 });
 
 /**

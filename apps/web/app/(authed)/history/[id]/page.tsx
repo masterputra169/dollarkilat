@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import {
+  ArrowDownToLine,
   ArrowLeft,
   CheckCircle2,
   Circle,
@@ -176,6 +177,7 @@ function DetailSkeleton() {
 }
 
 function DetailBody({ tx }: { tx: UserTransaction }) {
+  const isDeposit = tx.type === "deposit";
   const tone = statusToTone(tx.status);
   const usdcAmount = new BigNumber(tx.amount_usdc_lamports)
     .dividedBy(1_000_000)
@@ -185,6 +187,70 @@ function DetailBody({ tx }: { tx: UserTransaction }) {
     : null;
   const isFailed = tx.status === "failed_settlement" || tx.status === "rejected";
 
+  if (isDeposit) {
+    return (
+      <>
+        <Card variant="elevated" className="bg-card-mesh relative overflow-hidden">
+          <div className="relative px-5 py-5 sm:px-7 sm:py-6">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex size-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
+                <ArrowDownToLine className="size-4" />
+              </span>
+              <CardLabel>Deposit USDC diterima</CardLabel>
+            </div>
+            <p className="mt-2 font-mono text-3xl font-semibold tabular-nums tracking-tight text-emerald-600 dark:text-emerald-400 sm:text-4xl">
+              +{formatUSDC(usdcAmount)} USDC
+            </p>
+            <div className="mt-3 flex items-center gap-2">
+              <Pill tone="success">Diterima on-chain</Pill>
+              <Pill tone="neutral">Solana</Pill>
+            </div>
+          </div>
+        </Card>
+
+        <Card>
+          <div className="divide-y divide-[var(--color-border-subtle)]">
+            <DetailRow
+              label="Tanggal"
+              value={
+                tx.pjp_settled_at
+                  ? formatTxDate(tx.pjp_settled_at)
+                  : formatTxDate(tx.created_at)
+              }
+            />
+            <DetailRow label="ID Transaksi" value={tx.id} mono />
+            {tx.signature && (
+              <DetailRow label="Signature" value={tx.signature} mono />
+            )}
+          </div>
+        </Card>
+
+        {explorerUrl && (
+          <a
+            href={explorerUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block"
+          >
+            <Card className="transition-colors hover:bg-[var(--color-bg-subtle)]">
+              <div className="flex items-center justify-between gap-3 px-5 py-4">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-[var(--color-fg)]">
+                    Lihat di Solana Explorer
+                  </p>
+                  <p className="mt-0.5 text-[11px] text-[var(--color-fg-subtle)]">
+                    Verifikasi transfer on-chain
+                  </p>
+                </div>
+                <ExternalLink className="size-4 shrink-0 text-[var(--color-fg-muted)]" />
+              </div>
+            </Card>
+          </a>
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       {/* Hero */}
@@ -192,7 +258,7 @@ function DetailBody({ tx }: { tx: UserTransaction }) {
         <div className="relative px-5 py-5 sm:px-7 sm:py-6">
           <CardLabel>Total dibayar</CardLabel>
           <p className="mt-2 font-mono text-3xl font-semibold tabular-nums tracking-tight text-[var(--color-fg)] sm:text-4xl">
-            {formatRupiah(tx.amount_idr)}
+            {tx.amount_idr !== null ? formatRupiah(tx.amount_idr) : "—"}
           </p>
           <p className="mt-1.5 text-sm text-[var(--color-fg-muted)]">
             ≈ {formatUSDC(usdcAmount)} USDC
@@ -269,19 +335,25 @@ function DetailBody({ tx }: { tx: UserTransaction }) {
       {/* Details */}
       <Card>
         <div className="divide-y divide-[var(--color-border-subtle)]">
-          <DetailRow label="Merchant" value={tx.merchant_name} />
+          {tx.merchant_name && (
+            <DetailRow label="Merchant" value={tx.merchant_name} />
+          )}
           {tx.merchant_id && (
             <DetailRow label="NMID" value={tx.merchant_id} mono />
           )}
           {tx.acquirer && <DetailRow label="Acquirer" value={tx.acquirer} />}
-          <DetailRow
-            label="Kurs"
-            value={`1 USDC = ${formatRupiah(tx.exchange_rate)}`}
-          />
-          <DetailRow
-            label="Biaya layanan"
-            value={formatRupiah(tx.app_fee_idr)}
-          />
+          {tx.exchange_rate && (
+            <DetailRow
+              label="Kurs"
+              value={`1 USDC = ${formatRupiah(tx.exchange_rate)}`}
+            />
+          )}
+          {tx.app_fee_idr !== null && (
+            <DetailRow
+              label="Biaya layanan"
+              value={formatRupiah(tx.app_fee_idr)}
+            />
+          )}
           <DetailRow
             label="Tanggal"
             value={formatTxDate(tx.created_at)}
