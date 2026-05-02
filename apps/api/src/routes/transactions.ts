@@ -185,27 +185,36 @@ transactions.post("/scan-deposits", async (c) => {
   const DEPOSIT_QUOTE_SENTINEL = "00000000-0000-0000-0000-000000000000";
   const DEPOSIT_MERCHANT_SENTINEL = "Deposit Solana";
 
-  const rows = newOnes.map((d) => ({
-    user_id: userId,
-    quote_id: DEPOSIT_QUOTE_SENTINEL,
-    type: "deposit" as const,
-    status: "completed" as const,
-    amount_idr: 0,
-    amount_usdc_lamports: Number(d.amount_lamports),
-    app_fee_idr: 0,
-    exchange_rate: "0",
-    merchant_name: DEPOSIT_MERCHANT_SENTINEL,
-    merchant_id: null,
-    acquirer: null,
-    signature: d.signature,
-    fee_payer_pubkey: "external",
-    pjp_partner: "mock",
-    pjp_id: null,
-    pjp_settled_at: d.block_time
+  const rows = newOnes.map((d) => {
+    // Use the real on-chain block time as the canonical timestamp so the
+    // /history list orders deposits chronologically (e.g., a deposit from
+    // 2 weeks ago shows "2 minggu lalu", not "barusan"). Falls back to
+    // now() only if Helius didn't return blockTime (rare for confirmed tx).
+    const eventIso = d.block_time
       ? new Date(d.block_time * 1000).toISOString()
-      : null,
-    failure_reason: null,
-  }));
+      : new Date().toISOString();
+    return {
+      user_id: userId,
+      quote_id: DEPOSIT_QUOTE_SENTINEL,
+      type: "deposit" as const,
+      status: "completed" as const,
+      amount_idr: 0,
+      amount_usdc_lamports: Number(d.amount_lamports),
+      app_fee_idr: 0,
+      exchange_rate: "0",
+      merchant_name: DEPOSIT_MERCHANT_SENTINEL,
+      merchant_id: null,
+      acquirer: null,
+      signature: d.signature,
+      fee_payer_pubkey: "external",
+      pjp_partner: "mock",
+      pjp_id: null,
+      pjp_settled_at: eventIso,
+      failure_reason: null,
+      created_at: eventIso,
+      updated_at: eventIso,
+    };
+  });
 
   const { error: insertErr } = await supabaseAdmin
     .from("transactions")
