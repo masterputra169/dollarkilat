@@ -17,7 +17,6 @@ import {
   ChevronRight,
   Copy,
   ExternalLink,
-  Fingerprint,
   Info,
   Key,
   LogOut,
@@ -230,8 +229,8 @@ export default function SettingsPage() {
 
         {/* Pembayaran */}
         <section>
-          <SectionLabel icon={<Fingerprint className="size-3.5" />}>
-            Cara konfirmasi pembayaran
+          <SectionLabel icon={<Zap className="size-3.5" />}>
+            Pembayaran One-Tap
           </SectionLabel>
 
           {loadingConsent ? (
@@ -254,8 +253,8 @@ export default function SettingsPage() {
                       <Pill tone="success">Aktif</Pill>
                     </div>
                     <p className="mt-2 text-[13px] text-[var(--color-fg-muted)]">
-                      Pembayaran kecil otomatis tanpa popup biometrik. Privy simpan
-                      signing key di Trusted Execution Environment.
+                      Pembayaran kecil otomatis tanpa popup tiap transaksi.
+                      Privy simpan signing key di Trusted Execution Environment.
                     </p>
                   </div>
                 </div>
@@ -297,17 +296,17 @@ export default function SettingsPage() {
             <Card className="mt-2">
               <div className="px-5 pt-5 pb-4 sm:px-6">
                 <div className="flex items-center gap-2">
-                  <span className="inline-flex size-8 items-center justify-center rounded-full bg-[var(--color-bg-subtle)] text-[var(--color-fg-subtle)]">
+                  <span className="inline-flex size-8 items-center justify-center rounded-full bg-amber-500/15 text-amber-300">
                     <Shield className="size-4" />
                   </span>
                   <p className="text-sm font-semibold text-[var(--color-fg)]">
-                    Mode Aman
+                    One-Tap belum aktif
                   </p>
-                  <Pill tone="neutral">Aktif</Pill>
+                  <Pill tone="warning">Perlu aktivasi</Pill>
                 </div>
                 <p className="mt-2 text-[13px] text-[var(--color-fg-muted)]">
-                  Setiap pembayaran minta biometrik. Tidak ada signing key yang
-                  didelegasikan ke server.
+                  Aktifkan One-Tap untuk bisa bayar QRIS. Sekali setup,
+                  pembayaran selanjutnya jalan otomatis tanpa popup.
                 </p>
               </div>
               <Link
@@ -482,8 +481,8 @@ export default function SettingsPage() {
               </h2>
             </div>
             <p className="mt-3 text-sm text-[var(--color-fg-muted)]">
-              Setelah dimatikan, setiap pembayaran akan minta verifikasi biometrik.
-              Kamu bisa aktifkan lagi kapan saja di Setelan.
+              Setelah dimatikan, kamu tidak bisa bayar QRIS sampai One-Tap
+              diaktifkan ulang. Bisa di-aktifin lagi kapan saja di Setelan.
             </p>
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
               <Button
