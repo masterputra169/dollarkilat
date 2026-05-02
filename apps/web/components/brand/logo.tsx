@@ -15,7 +15,7 @@ export function Logo({ className = "", iconOnly = false }: LogoProps) {
         width={1096}
         height={1436}
         priority
-        className="h-8 w-auto"
+        className={iconOnly ? "h-14 w-auto" : "h-10 w-auto"}
       />
       {!iconOnly && (
         <span className="text-[15px] font-semibold tracking-tight text-[var(--color-fg)]">

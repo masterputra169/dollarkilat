@@ -30,10 +30,9 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
-  icons: {
-    icon: [{ url: "/icons/icon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/icons/icon.svg", type: "image/svg+xml" }],
-  },
+  // Icons handled via Next.js file convention:
+  //   app/icon.png       → favicon (browser tab)
+  //   app/apple-icon.png → iOS home screen
 };
 
 export const viewport: Viewport = {
