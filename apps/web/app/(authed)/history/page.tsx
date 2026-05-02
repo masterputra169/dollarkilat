@@ -129,7 +129,7 @@ export default function HistoryPage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <header className="sticky top-0 z-10 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg)]/80 backdrop-blur-md">
+      <header className="sticky top-0 z-10 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg)]/80 pt-safe backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-2xl items-center gap-2 px-5 py-3 sm:px-8 sm:py-3.5">
           <Link
             href="/dashboard"

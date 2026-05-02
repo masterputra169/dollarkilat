@@ -238,9 +238,27 @@ Jangan suggest library baru tanpa alasan kuat. Stack sudah locked untuk consiste
   - Block-time as canonical `created_at` for chronological ordering (commit 41e7212)
   - `/settings` page — One-Tap status + revoke flow (Privy `removeSessionSigners` + DB row) + account/app/support sections + confirm modal
   - Polished `/offline` page with design system tokens + retry button + connectivity tips
-- **Currently working on:** Day 8 polish (settings + offline done; demo rehearsal + pitch deck pending)
+  - Export private key fix: switch `useExportWallet` import to `@privy-io/react-auth/solana` (was failing with EVM address validation)
+  - Export modal UX: dismiss confirm modal before triggering Privy iframe (prevents stuck overlay)
+  - Merchant edit-in-place: replace `DELETE /merchants/:id` with `PATCH` + new edit modal pre-filled (transactions FK preserved)
+  - Auto page-reload after revoke One-Tap (clears Privy SDK cached session signer)
+  - Pay flow: explicit `ConfirmCard` step before signing in biometric mode (cross-device parity — Privy doesn't always surface biometric prompt on desktop)
+  - Day 8 deliverables drafted: `docs/day8-smoke-test.md` + `docs/pitch-deck-v1.md`
+- **Day 9 (re-scoped, polish + perf):**
+  - iOS PWA polish — added `pt-safe` utility class to globals.css + applied to all sticky headers (dashboard, history list/detail, merchant, pay, settings, receive)
+  - Pre-warm USDC↔IDR oracle cache on /pay mount (skips ~300-700ms CoinGecko round-trip on first quote)
+  - Parallel pre-fetch on /pay mount via `Promise.allSettled`: consent + balance + rate
+  - Pre-flight insufficient-balance guard di PreviewCard (early UX, backend tetap revalidate)
+  - `apps/web/lib/perf.ts` — performance.mark wrapper + `summarizePay()` console.table
+  - Latency markers wired di /pay lifecycle: scan_decoded → quote_start/received → sign_start/done → submit_start/done
+  - `BENCHMARK.md` scaffold dengan protocol 10-tx run + bottleneck checklist
+  - `docs/day9-lighthouse-audit.md` runbook (PWA score ≥ 90 target)
+  - Format Rupiah/USDC audit: sudah konsisten (semua pakai formatRupiah/formatUSDC helper)
+  - Mobile responsive audit: cuma 1 fixed-width found (`max-w-[180px]` di dashboard email truncate, acceptable)
+  - Sponsored counter animation: skipped — counter dihapus dari product narrative (cleanup Apr 29)
+- **Currently working on:** Day 9 manual execution — smoke test (`docs/day8-smoke-test.md`), Lighthouse audit (`docs/day9-lighthouse-audit.md`), 10-tx benchmark run (`BENCHMARK.md`), pitch deck build, Loom recording
 - **Blockers:** None
-- **Next:** Demo rehearsal script (Loom recording flow + edge case handling) → pitch deck v1
+- **Next:** User executes manual checklists → Day 10 (buffer / nice-to-have / bug fixes)
 
 ---
 

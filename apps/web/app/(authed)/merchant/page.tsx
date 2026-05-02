@@ -13,10 +13,10 @@ import {
   ExternalLink,
   Info,
   Loader2,
+  Pencil,
   RefreshCw,
   ShieldAlert,
   Store,
-  Trash2,
   TrendingUp,
   X,
 } from "lucide-react";
@@ -91,7 +91,7 @@ export default function MerchantPage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <header className="sticky top-0 z-10 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg)]/80 backdrop-blur-md">
+      <header className="sticky top-0 z-10 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg)]/80 pt-safe backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-5 py-3 sm:px-8 sm:py-3.5">
           <Logo />
           <Link
@@ -366,40 +366,15 @@ function Dashboard({
   data: MerchantDashboardResponse;
   onRefresh: () => void;
 }) {
-  const { getAccessToken } = usePrivy();
   const m = data.merchant!;
   const [copied, setCopied] = useState(false);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   async function copyNmid() {
     await navigator.clipboard.writeText(m.nmid);
     setCopied(true);
     toast.success("NMID disalin");
     setTimeout(() => setCopied(false), 2000);
-  }
-
-  async function handleDelete() {
-    setDeleting(true);
-    try {
-      const token = await getAccessToken();
-      if (!token) throw new Error("no_access_token");
-      await api(`/merchants/${m.id}`, {
-        method: "DELETE",
-        token,
-      });
-      toast.success("Merchant dihapus. Klaim merchant baru kalau perlu.");
-      setConfirmingDelete(false);
-      onRefresh(); // Re-fetch → merchant null → ClaimForm muncul
-    } catch (err) {
-      const msg =
-        err instanceof ApiError
-          ? `${err.code}: ${err.message}`
-          : (err as Error).message ?? "unknown";
-      toast.error(`Gagal hapus: ${msg}`);
-    } finally {
-      setDeleting(false);
-    }
   }
 
   return (
@@ -523,117 +498,251 @@ function Dashboard({
         </Card>
       )}
 
-      {/* Manage merchant — delete + claim baru */}
+      {/* Manage merchant — edit in place (data tetep di DB) */}
       <div className="pt-2">
         <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
           <div className="flex items-start gap-3">
             <RefreshCw className="mt-0.5 size-4 shrink-0 text-[var(--color-fg-subtle)]" />
             <div className="flex-1 text-[12.5px] leading-relaxed text-[var(--color-fg-muted)]">
               <p className="font-semibold text-[var(--color-fg)]">
-                Ganti / hapus merchant
+                Ganti detail merchant
               </p>
               <p className="mt-0.5">
-                Hapus merchant ini → riwayat transaksi tetep ada (tapi
-                gak ke-link), kamu bisa claim merchant baru dengan NMID
-                berbeda.
+                Update nama, NMID, kota, atau bank routing. Riwayat transaksi
+                tetap ke-link ke merchant ini.
               </p>
             </div>
           </div>
           <button
             type="button"
-            onClick={() => setConfirmingDelete(true)}
-            className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full border border-red-500/20 bg-red-500/[0.08] px-3.5 text-xs font-medium text-red-300 transition-colors hover:bg-red-500/[0.15]"
+            onClick={() => setEditing(true)}
+            className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 text-xs font-medium text-[var(--color-fg)] transition-colors hover:bg-white/[0.08]"
           >
-            <Trash2 className="size-3.5" />
-            Hapus merchant
+            <Pencil className="size-3.5" />
+            Ganti merchant
           </button>
         </div>
       </div>
 
-      {confirmingDelete && (
-        <ConfirmDeleteModal
-          merchantName={m.name}
-          deleting={deleting}
-          onCancel={() => setConfirmingDelete(false)}
-          onConfirm={handleDelete}
+      {editing && (
+        <EditMerchantModal
+          merchant={m}
+          onCancel={() => setEditing(false)}
+          onSaved={() => {
+            setEditing(false);
+            onRefresh();
+          }}
         />
       )}
     </>
   );
 }
 
-function ConfirmDeleteModal({
-  merchantName,
-  deleting,
+function EditMerchantModal({
+  merchant,
   onCancel,
-  onConfirm,
+  onSaved,
 }: {
-  merchantName: string;
-  deleting: boolean;
+  merchant: Merchant;
   onCancel: () => void;
-  onConfirm: () => void;
+  onSaved: () => void;
 }) {
+  const { getAccessToken } = usePrivy();
+  const [name, setName] = useState(merchant.name);
+  const [nmid, setNmid] = useState(merchant.nmid);
+  const [city, setCity] = useState(merchant.city ?? "");
+  const [bankCode, setBankCode] = useState(merchant.bank_code ?? "");
+  const [accountNumber, setAccountNumber] = useState(
+    merchant.account_number ?? "",
+  );
+  const [accountHolder, setAccountHolder] = useState(
+    merchant.account_holder ?? "",
+  );
+  const [saving, setSaving] = useState(false);
+
+  const validBase =
+    name.trim().length >= 2 && /^[A-Z0-9]{8,40}$/i.test(nmid.trim());
+
+  const bankPartial =
+    Boolean(bankCode.trim()) ||
+    Boolean(accountNumber.trim()) ||
+    Boolean(accountHolder.trim());
+  const bankComplete =
+    bankCode.trim().length >= 2 &&
+    /^\d{4,40}$/.test(accountNumber.trim()) &&
+    accountHolder.trim().length >= 2;
+  const bankValid = !bankPartial || bankComplete;
+
+  // Build a minimal patch — only send fields that actually changed.
+  // Bank fields use `null` to clear (when user emptied all 3 from a
+  // previously-set state).
+  function buildPatch() {
+    const patch: Record<string, string | null> = {};
+    if (name.trim() !== merchant.name) patch.name = name.trim();
+    if (nmid.trim().toUpperCase() !== merchant.nmid)
+      patch.nmid = nmid.trim().toUpperCase();
+    const cityNorm = city.trim() || null;
+    if (cityNorm !== (merchant.city ?? null)) patch.city = cityNorm;
+
+    if (bankComplete) {
+      if (bankCode.trim().toLowerCase() !== (merchant.bank_code ?? ""))
+        patch.bank_code = bankCode.trim().toLowerCase();
+      if (accountNumber.trim() !== (merchant.account_number ?? ""))
+        patch.account_number = accountNumber.trim();
+      if (accountHolder.trim() !== (merchant.account_holder ?? ""))
+        patch.account_holder = accountHolder.trim();
+    } else if (!bankPartial && merchant.bank_code) {
+      // User cleared all 3 bank fields → null them out
+      patch.bank_code = null;
+      patch.account_number = null;
+      patch.account_holder = null;
+    }
+    return patch;
+  }
+
+  async function save() {
+    if (!validBase || !bankValid || saving) return;
+    const patch = buildPatch();
+    if (Object.keys(patch).length === 0) {
+      toast.info("Tidak ada perubahan");
+      return;
+    }
+    setSaving(true);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("no_access_token");
+      await api<{ merchant: Merchant }>(`/merchants/${merchant.id}`, {
+        method: "PATCH",
+        token,
+        body: JSON.stringify(patch),
+      });
+      toast.success("Merchant diperbarui");
+      onSaved();
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.code === "nmid_taken"
+            ? "NMID itu sudah diklaim merchant lain."
+            : `${err.code}: ${err.message}`
+          : (err as Error).message ?? "unknown";
+      toast.error(`Gagal update: ${msg}`);
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center px-4"
+      className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6"
     >
       <div
         className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={deleting ? undefined : onCancel}
+        onClick={saving ? undefined : onCancel}
         aria-hidden
       />
-      <div className="relative w-full max-w-md rounded-2xl border border-white/[0.08] bg-[rgb(20_20_24)] shadow-[0_20px_60px_-15px_rgb(0_0_0_/_0.7)]">
-        <div className="flex items-start gap-3 p-5 sm:p-6">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-red-500/15 text-red-300 ring-1 ring-red-500/25">
-            <Trash2 className="size-5" />
+      <div className="relative flex max-h-full w-full max-w-md flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-[rgb(20_20_24)] shadow-[0_20px_60px_-15px_rgb(0_0_0_/_0.7)]">
+        <div className="flex items-start gap-3 border-b border-white/[0.05] p-5 sm:p-6">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/25">
+            <Pencil className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-base font-semibold text-[var(--color-fg)]">
-              Hapus merchant ini?
+              Ganti detail merchant
             </h3>
             <p className="mt-1.5 text-[12.5px] leading-relaxed text-[var(--color-fg-muted)]">
-              Merchant{" "}
-              <span className="font-medium text-[var(--color-fg)]">
-                {merchantName}
-              </span>{" "}
-              akan dihapus. Riwayat transaksi tetep tersimpan tapi gak
-              ke-link ke merchant lagi. Kamu bisa claim merchant baru
-              setelahnya.
+              Riwayat transaksi tetep ke-link ke merchant ini — yang berubah
+              hanya field yang kamu edit.
             </p>
           </div>
           <button
             type="button"
             onClick={onCancel}
-            disabled={deleting}
+            disabled={saving}
             aria-label="Tutup"
             className="-mr-1 -mt-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--color-fg-muted)] transition-colors hover:bg-white/[0.05] hover:text-[var(--color-fg)] disabled:opacity-50"
           >
             <X className="size-4" />
           </button>
         </div>
+
+        <div className="flex-1 space-y-4 overflow-y-auto p-5 sm:p-6">
+          <Field
+            label="Nama merchant"
+            placeholder="Warung Bu Sri"
+            value={name}
+            onChange={setName}
+          />
+          <Field
+            label="QRIS NMID"
+            placeholder="ID2024XXXXXXXX"
+            value={nmid}
+            onChange={(v) => setNmid(v.toUpperCase())}
+            mono
+          />
+          <Field
+            label="Kota (opsional)"
+            placeholder="Yogyakarta"
+            value={city}
+            onChange={setCity}
+          />
+
+          <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
+            <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--color-fg-subtle)]">
+              Bank routing
+            </p>
+            <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-fg-muted)]">
+              Isi semua 3 field, atau kosongkan semua untuk balik ke mock PJP.
+            </p>
+
+            <div className="mt-3 space-y-3">
+              <Field
+                label="Bank code"
+                placeholder="bca, mandiri, bni, qris"
+                value={bankCode}
+                onChange={(v) => setBankCode(v.toLowerCase())}
+                mono
+              />
+              <Field
+                label="Account number"
+                placeholder="1234567890"
+                value={accountNumber}
+                onChange={(v) => setAccountNumber(v.replace(/[^\d]/g, ""))}
+                mono
+              />
+              <Field
+                label="Account holder"
+                placeholder="Bu Sri"
+                value={accountHolder}
+                onChange={setAccountHolder}
+              />
+              {bankPartial && !bankComplete && (
+                <p className="text-[11px] text-[var(--color-warning)]">
+                  Isi semua 3 field bank, atau kosongkan semua.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
         <div className="flex items-center gap-2 border-t border-white/[0.05] bg-white/[0.02] p-4 sm:p-5">
           <button
             type="button"
             onClick={onCancel}
-            disabled={deleting}
+            disabled={saving}
             className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-4 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-white/[0.07] hover:text-[var(--color-fg)] disabled:opacity-50"
           >
             Batal
           </button>
           <button
             type="button"
-            onClick={onConfirm}
-            disabled={deleting}
-            className="inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full bg-red-500/90 px-4 text-sm font-semibold text-white transition-colors hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-60"
+            onClick={save}
+            disabled={!validBase || !bankValid || saving}
+            className="btn-gradient-brand inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            {deleting ? (
-              <Loader2 className="size-4 animate-spin" />
-            ) : (
-              <Trash2 className="size-4" />
-            )}
-            Hapus
+            {saving && <Loader2 className="size-4 animate-spin" />}
+            Simpan
           </button>
         </div>
       </div>

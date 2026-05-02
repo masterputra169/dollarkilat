@@ -1,11 +1,10 @@
 "use client";
 
+import { usePrivy, useSessionSigners } from "@privy-io/react-auth";
 import {
   useExportWallet,
-  usePrivy,
-  useSessionSigners,
-} from "@privy-io/react-auth";
-import { useWallets as useSolanaWallets } from "@privy-io/react-auth/solana";
+  useWallets as useSolanaWallets,
+} from "@privy-io/react-auth/solana";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -103,14 +102,17 @@ export default function SettingsPage() {
         token,
       });
 
-      toast.success("One-Tap dimatikan. Pembayaran sekarang minta biometrik.");
+      toast.success("One-Tap dimatikan. Pembayaran sekarang minta konfirmasi.");
       setConfirmRevoke(false);
-      await fetchConsent();
+      // Hard reload — Privy SDK caches session signer state in memory, so
+      // even though the DB row + remote signer are gone, in-flight signing
+      // calls can still go through silently until the page reinitializes.
+      // Short delay so the toast is visible.
+      setTimeout(() => window.location.reload(), 600);
     } catch (err) {
       const msg =
         err instanceof ApiError ? err.code : (err as Error).message ?? "unknown";
       toast.error(`Gagal mematikan One-Tap: ${msg}`);
-    } finally {
       setRevoking(false);
     }
   }
@@ -143,12 +145,12 @@ export default function SettingsPage() {
 
   async function doExport() {
     if (!solanaAddress) return;
+    // Dismiss our confirm modal first — Privy iframe takes over the screen,
+    // and its close-promise can be flaky when user dismisses via backdrop.
+    setConfirmExport(false);
     setExporting(true);
     try {
-      // Privy opens a sandboxed iframe modal — private key shown there,
-      // never reaches our app code. We only fire the trigger.
       await exportWallet({ address: solanaAddress });
-      setConfirmExport(false);
     } catch (err) {
       const msg = (err as Error).message ?? "unknown";
       toast.error(`Export gagal: ${msg}`);
@@ -159,7 +161,7 @@ export default function SettingsPage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <header className="sticky top-0 z-10 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg)]/80 backdrop-blur-md">
+      <header className="sticky top-0 z-10 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg)]/80 pt-safe backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-2xl items-center gap-2 px-5 py-3 sm:px-8 sm:py-3.5">
           <Link
             href="/dashboard"

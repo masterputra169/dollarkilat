@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { zValidator } from "@hono/zod-validator";
 import {
   MerchantClaimRequestSchema,
+  MerchantUpdateRequestSchema,
   type Merchant,
   type MerchantDashboardResponse,
   type MerchantTransaction,
@@ -127,30 +128,58 @@ merchants.post(
 );
 
 /**
- * DELETE /merchants/:id — release a merchant. The transactions FK is
- * `on delete set null`, so historical payment rows survive but lose the
- * merchant link.
+ * PATCH /merchants/:id — edit owned merchant in place. Keeps the row
+ * (and its transactions FK) so historical payments stay linked. NMID
+ * stays globally unique → 23505 maps to nmid_taken.
  */
-merchants.delete("/:id", async (c) => {
-  const userId = await getInternalUserId(c.get("privyUserId"));
-  if (!userId) return c.json({ error: "user_not_synced" }, 404);
+merchants.patch(
+  "/:id",
+  zValidator("json", MerchantUpdateRequestSchema),
+  async (c) => {
+    const userId = await getInternalUserId(c.get("privyUserId"));
+    if (!userId) return c.json({ error: "user_not_synced" }, 404);
 
-  const id = c.req.param("id");
-  const { error, data } = await supabaseAdmin
-    .from("merchants")
-    .delete()
-    .eq("id", id)
-    .eq("owner_user_id", userId)
-    .select("id");
-  if (error) {
-    console.error("[merchants/delete] failed:", error);
-    return c.json({ error: "delete_failed" }, 500);
-  }
-  if (!data || data.length === 0) {
-    return c.json({ error: "not_found_or_not_owner" }, 404);
-  }
-  return c.json({ ok: true });
-});
+    const id = c.req.param("id");
+    const input = c.req.valid("json");
+
+    const patch: Record<string, string | null> = {};
+    if (input.name !== undefined) patch.name = input.name;
+    if (input.nmid !== undefined) patch.nmid = input.nmid.toUpperCase();
+    if (input.city !== undefined) patch.city = input.city ?? null;
+    if (input.bank_code !== undefined) patch.bank_code = input.bank_code ?? null;
+    if (input.account_number !== undefined)
+      patch.account_number = input.account_number ?? null;
+    if (input.account_holder !== undefined)
+      patch.account_holder = input.account_holder ?? null;
+
+    const { data, error } = await supabaseAdmin
+      .from("merchants")
+      .update(patch)
+      .eq("id", id)
+      .eq("owner_user_id", userId)
+      .select(
+        "id, name, nmid, city, is_verified, bank_code, account_number, account_holder, created_at",
+      )
+      .maybeSingle();
+
+    if (error) {
+      if (error.code === "23505") {
+        return c.json(
+          {
+            error: "nmid_taken",
+            message: "NMID itu sudah diklaim merchant lain.",
+          },
+          409,
+        );
+      }
+      console.error("[merchants/patch] update failed:", error);
+      return c.json({ error: "update_failed" }, 500);
+    }
+    if (!data) return c.json({ error: "not_found_or_not_owner" }, 404);
+
+    return c.json({ merchant: rowToMerchant(data as MerchantRow) });
+  },
+);
 
 /**
  * GET /merchants/me/dashboard — aggregate income + recent transactions

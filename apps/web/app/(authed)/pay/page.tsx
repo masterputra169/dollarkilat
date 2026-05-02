@@ -20,12 +20,15 @@ import {
   Zap,
 } from "lucide-react";
 import {
+  type BalanceResponse,
   type ConsentResponse,
   type PayResponse,
   type QuoteResponse,
   DELEGATED_DEFAULT_MAX_PER_TX_IDR,
 } from "@dollarkilat/shared";
 import { api, ApiError } from "@/lib/api";
+import { publicEnv } from "@/lib/env";
+import { clearPayMarks, mark, summarizePay } from "@/lib/perf";
 import { Logo } from "@/components/brand/logo";
 import { Card, CardLabel } from "@/components/ui/card";
 import { QRScanner } from "@/components/qr/qr-scanner";
@@ -47,6 +50,11 @@ type Step =
   | { kind: "amount"; decoded: QRISDecoded } // static QR — user types amount
   | { kind: "quoting"; decoded: QRISDecoded }
   | { kind: "preview"; decoded: QRISDecoded; quote: QuoteResponse }
+  | {
+      kind: "confirming"; // biometric mode — explicit user-confirmation step
+      decoded: QRISDecoded;
+      quote: QuoteResponse;
+    }
   | { kind: "processing"; quote: QuoteResponse }
   | { kind: "success"; signature: string; quote: QuoteResponse; isMock: boolean }
   | { kind: "failed"; reason: string };
@@ -73,34 +81,52 @@ export default function PayPage() {
   const router = useRouter();
   const [step, setStep] = useState<Step>({ kind: "scan" });
   const [consent, setConsent] = useState<ConsentResponse | null>(null);
+  const [balance, setBalance] = useState<BalanceResponse | null>(null);
 
   useEffect(() => {
     if (ready && !authenticated) router.replace("/login");
   }, [ready, authenticated, router]);
 
-  // Pull current consent so the Preview can show the right mode badge.
+  // Parallel pre-fetch on /pay mount:
+  //   • consent — drives Preview's mode badge + ConfirmCard routing
+  //   • USDC balance — surface insufficient-balance early in Preview
+  //   • USDC↔IDR rate — pre-warm 60s server cache so first /qris/quote
+  //     skips the CoinGecko round-trip (~300-700ms)
+  // Promise.allSettled so partial failures don't block the others.
   useEffect(() => {
     if (!ready || !authenticated) return;
+    const wallet = solanaWallets[0];
     let cancelled = false;
     (async () => {
       try {
         const token = await getAccessToken();
         if (!token) return;
-        const res = await api<ConsentResponse>("/consent/delegated", { token });
-        if (!cancelled) setConsent(res);
+        const [consentRes, balanceRes] = await Promise.allSettled([
+          api<ConsentResponse>("/consent/delegated", { token }),
+          wallet
+            ? api<BalanceResponse>(`/balance/${wallet.address}`, { token })
+            : Promise.resolve(null),
+          fetch(`${publicEnv.apiUrl()}/rate/usdc-idr`).catch(() => null),
+        ]);
+        if (cancelled) return;
+        if (consentRes.status === "fulfilled") setConsent(consentRes.value);
+        if (balanceRes.status === "fulfilled" && balanceRes.value) {
+          setBalance(balanceRes.value);
+        }
       } catch {
-        // not fatal — defaults to biometric mode
+        // not fatal — defaults still safe
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [ready, authenticated, getAccessToken]);
+  }, [ready, authenticated, getAccessToken, solanaWallets]);
 
   const reset = useCallback(() => setStep({ kind: "scan" }), []);
 
   const requestQuote = useCallback(
     async (decoded: QRISDecoded, amountIdr?: number) => {
+      mark("pay:quote_start");
       setStep({ kind: "quoting", decoded });
       try {
         const token = await getAccessToken();
@@ -114,6 +140,7 @@ export default function PayPage() {
               : { qris_string: decoded.raw },
           ),
         });
+        mark("pay:quote_received");
         setStep({ kind: "preview", decoded, quote });
       } catch (err) {
         const reason =
@@ -128,6 +155,9 @@ export default function PayPage() {
 
   const handleDecode = useCallback(
     async (raw: string) => {
+      // Fresh measurement per attempt; clear stale marks from prior tx.
+      clearPayMarks();
+      mark("pay:scan_decoded");
       let decoded: QRISDecoded;
       try {
         decoded = parseQRIS(raw);
@@ -149,10 +179,10 @@ export default function PayPage() {
     [requestQuote],
   );
 
-  const handleConfirm = useCallback(
-    async (mode: Mode) => {
-      if (step.kind !== "preview") return;
-      const { quote, decoded } = step;
+  // Actual signing + submit. Pulled out so both paths (one_tap direct,
+  // biometric via confirm modal) can share it.
+  const runPay = useCallback(
+    async (mode: Mode, decoded: QRISDecoded, quote: QuoteResponse) => {
       setStep({ kind: "processing", quote });
       try {
         const wallet = solanaWallets[0];
@@ -161,19 +191,23 @@ export default function PayPage() {
         // 1. Decode the unsigned tx the backend built for us.
         const unsignedBytes = base64ToBytes(quote.unsigned_tx_base64);
 
-        // 2. Ask Privy to sign it. In biometric mode this triggers a
-        //    biometric prompt; in delegated/One-Tap mode the registered
-        //    session signer signs without prompt.
+        // 2. Ask Privy to sign it. On mobile this can trigger biometric;
+        //    on desktop/delegated mode it signs via the embedded wallet
+        //    without an OS prompt — our explicit confirm modal upstream
+        //    is what guarantees user intent.
+        mark("pay:sign_start");
         const signed = await signTransaction({
           transaction: unsignedBytes,
           wallet,
         });
+        mark("pay:sign_done");
         const signedBase64 = bytesToBase64(signed.signedTransaction);
 
         // 3. Submit to backend → backend validates + co-signs as fee payer
         //    + submits to Solana + waits confirmation + records DB row.
         const token = await getAccessToken();
         if (!token) throw new Error("no_access_token");
+        mark("pay:submit_start");
         const res = await api<PayResponse>("/qris/pay", {
           method: "POST",
           token,
@@ -184,12 +218,16 @@ export default function PayPage() {
             signed_tx: signedBase64,
           }),
         });
+        mark("pay:submit_done");
         setStep({
           kind: "success",
           signature: res.signature,
           quote,
           isMock: res.is_mock === true,
         });
+        // Log latency breakdown to console for benchmark capture
+        // (see docs/BENCHMARK.md for recording protocol).
+        summarizePay(`pay ${mode}`);
       } catch (err) {
         const reason =
           err instanceof ApiError
@@ -198,7 +236,24 @@ export default function PayPage() {
         setStep({ kind: "failed", reason });
       }
     },
-    [step, getAccessToken, signTransaction, solanaWallets],
+    [getAccessToken, signTransaction, solanaWallets],
+  );
+
+  // Preview "Bayar" button. one_tap → skip confirm (that's the whole
+  // point). biometric → route through explicit confirm step so there's
+  // always a visible "are you sure?" gate, even on desktop where Privy
+  // may not surface a native biometric prompt.
+  const handleConfirm = useCallback(
+    async (mode: Mode) => {
+      if (step.kind !== "preview") return;
+      const { quote, decoded } = step;
+      if (mode === "biometric") {
+        setStep({ kind: "confirming", decoded, quote });
+        return;
+      }
+      await runPay(mode, decoded, quote);
+    },
+    [step, runPay],
   );
 
   if (!ready || !authenticated) {
@@ -211,7 +266,7 @@ export default function PayPage() {
 
   return (
     <main className="flex flex-1 flex-col">
-      <header className="sticky top-0 z-10 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg)]/80 backdrop-blur-md">
+      <header className="sticky top-0 z-10 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg)]/80 pt-safe backdrop-blur-md">
         <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-5 py-3 sm:px-8 sm:py-3.5">
           <Logo />
           <Link
@@ -248,8 +303,23 @@ export default function PayPage() {
               decoded={step.decoded}
               quote={step.quote}
               consent={consent}
+              balance={balance}
               onConfirm={handleConfirm}
               onReset={reset}
+            />
+          )}
+          {step.kind === "confirming" && (
+            <ConfirmCard
+              decoded={step.decoded}
+              quote={step.quote}
+              onConfirm={() => runPay("biometric", step.decoded, step.quote)}
+              onCancel={() =>
+                setStep({
+                  kind: "preview",
+                  decoded: step.decoded,
+                  quote: step.quote,
+                })
+              }
             />
           )}
           {step.kind === "processing" && <ProcessingCard quote={step.quote} />}
@@ -293,6 +363,11 @@ function Heading({ step }: { step: Step }) {
       eyebrow: "Konfirmasi pembayaran",
       title: "Cek detail",
       sub: "Periksa detail di bawah, lalu konfirmasi.",
+    },
+    confirming: {
+      eyebrow: "Konfirmasi pembayaran",
+      title: "Konfirmasi terakhir",
+      sub: "Cek nominal sekali lagi sebelum bayar.",
     },
     processing: {
       eyebrow: "Memproses",
@@ -474,12 +549,14 @@ function PreviewCard({
   decoded,
   quote,
   consent,
+  balance,
   onConfirm,
   onReset,
 }: {
   decoded: QRISDecoded;
   quote: QuoteResponse;
   consent: ConsentResponse | null;
+  balance: BalanceResponse | null;
   onConfirm: (mode: Mode) => void;
   onReset: () => void;
 }) {
@@ -493,6 +570,20 @@ function PreviewCard({
   }, [consent, quote.amount_idr]);
 
   const mode: Mode = oneTapEligible ? "one_tap" : "biometric";
+
+  // Pre-flight balance check — pulled in parallel on /pay mount, may be
+  // stale by a few seconds but catches obvious "0 USDC" before signing.
+  // Backend revalidates anyway, this is just early UX guard.
+  const insufficient = useMemo(() => {
+    if (!balance) return false;
+    try {
+      const haveLamports = BigInt(balance.lamports);
+      const needLamports = BigInt(quote.amount_usdc_lamports);
+      return haveLamports < needLamports;
+    } catch {
+      return false;
+    }
+  }, [balance, quote.amount_usdc_lamports]);
 
   // Quote countdown.
   const expiresAt = useMemo(() => new Date(quote.expires_at).getTime(), [quote.expires_at]);
@@ -578,6 +669,14 @@ function PreviewCard({
         )}
       </div>
 
+      {insufficient && (
+        <div className="border-t border-red-500/20 bg-red-500/[0.06] px-5 py-3 sm:px-6">
+          <p className="text-[12px] leading-relaxed text-red-300">
+            <strong className="font-semibold">Saldo USDC kurang.</strong> Top up
+            wallet lo dulu — saldo sekarang {formatUSDC(balance!.ui_amount)} USDC.
+          </p>
+        </div>
+      )}
       <div className="border-t border-white/[0.05] bg-white/[0.02] p-4 sm:p-5">
         <div className="flex items-center gap-2">
           <button
@@ -590,7 +689,7 @@ function PreviewCard({
           </button>
           <button
             type="button"
-            disabled={expired}
+            disabled={expired || insufficient}
             onClick={() => onConfirm(mode)}
             className="btn-gradient-brand inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -630,6 +729,98 @@ function ModeBadge({ mode }: { mode: Mode }) {
     <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-violet-300 ring-1 ring-violet-500/25">
       <Fingerprint className="size-3" /> Biometric
     </span>
+  );
+}
+
+// Explicit user-confirmation gate before signing in biometric mode.
+// Privy's signTransaction has inconsistent UX across devices (silent on
+// desktop without platform authenticator, biometric prompt on mobile);
+// this card guarantees there's always a visible "are you sure?" step.
+function ConfirmCard({
+  decoded,
+  quote,
+  onConfirm,
+  onCancel,
+}: {
+  decoded: QRISDecoded;
+  quote: QuoteResponse;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
+  const [submitting, setSubmitting] = useState(false);
+
+  function handleClick() {
+    if (submitting) return;
+    setSubmitting(true);
+    onConfirm();
+  }
+
+  return (
+    <Card variant="elevated">
+      <div className="space-y-4 p-5 sm:p-6">
+        <div className="flex items-start gap-3">
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/25">
+            <Fingerprint className="size-5" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <CardLabel>Konfirmasi pembayaran</CardLabel>
+            <p className="mt-1 text-base font-semibold text-[var(--color-fg)]">
+              Bayar {formatRupiah(quote.amount_idr)}?
+            </p>
+            <p className="mt-0.5 text-xs text-[var(--color-fg-muted)]">
+              ke {quote.merchant_name ?? decoded.merchant_name ?? "merchant"}
+            </p>
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-sm">
+          <Row label="Total dibayar">
+            <span className="font-mono font-semibold tabular-nums text-[var(--color-fg)]">
+              {formatRupiah(quote.amount_idr)}
+            </span>
+          </Row>
+          <Row label="USDC dipotong">
+            <span className="font-mono tabular-nums text-[var(--color-fg)]">
+              {formatUSDC(quote.amount_usdc)} USDC
+            </span>
+          </Row>
+          {decoded.merchant_id && (
+            <Row label="NMID">
+              <span className="font-mono text-[var(--color-fg-muted)]">
+                {decoded.merchant_id}
+              </span>
+            </Row>
+          )}
+        </div>
+
+        <p className="text-[11px] leading-relaxed text-[var(--color-fg-subtle)]">
+          Mode Aman aktif — setiap pembayaran minta konfirmasi kamu sebelum
+          USDC dipotong. Klik <strong>Bayar Sekarang</strong> untuk lanjut.
+        </p>
+      </div>
+
+      <div className="border-t border-white/[0.05] bg-white/[0.02] p-4 sm:p-5">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={submitting}
+            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-4 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-white/[0.07] hover:text-[var(--color-fg)] disabled:opacity-50"
+          >
+            Batal
+          </button>
+          <button
+            type="button"
+            onClick={handleClick}
+            disabled={submitting}
+            className="btn-gradient-brand inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <Fingerprint className="size-4" />
+            {submitting ? "Memproses…" : "Bayar Sekarang"}
+          </button>
+        </div>
+      </div>
+    </Card>
   );
 }
 

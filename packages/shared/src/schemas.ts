@@ -168,6 +168,38 @@ export const MerchantClaimRequestSchema = z.object({
 });
 export type MerchantClaimRequest = z.infer<typeof MerchantClaimRequestSchema>;
 
+/**
+ * Edit existing merchant. All fields optional — only provided keys are
+ * patched. Bank fields use a sentinel `null` to clear (vs `undefined` =
+ * leave untouched).
+ */
+export const MerchantUpdateRequestSchema = z
+  .object({
+    name: z.string().trim().min(2).max(80).optional(),
+    nmid: z
+      .string()
+      .trim()
+      .min(8)
+      .max(40)
+      .regex(/^[A-Z0-9]+$/i, "NMID hanya huruf/angka")
+      .optional(),
+    city: z.string().trim().max(80).nullable().optional(),
+    bank_code: z
+      .string()
+      .trim()
+      .min(2)
+      .max(20)
+      .regex(/^[a-z_]+$/, "bank_code huruf kecil + underscore aja")
+      .nullable()
+      .optional(),
+    account_number: z.string().trim().min(4).max(40).nullable().optional(),
+    account_holder: z.string().trim().min(2).max(80).nullable().optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, {
+    message: "kosong — kasih minimal 1 field",
+  });
+export type MerchantUpdateRequest = z.infer<typeof MerchantUpdateRequestSchema>;
+
 export const MerchantTransactionSchema = z.object({
   id: z.string().uuid(),
   amount_idr: z.number().int(),
