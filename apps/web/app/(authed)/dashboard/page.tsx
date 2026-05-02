@@ -166,24 +166,32 @@ export default function DashboardPage() {
   }, [solanaAddress, getAccessToken]);
 
   // Recent transactions — fetched once on mount and on manual refresh.
-  // Triggers a deposit-scan first so on-chain incoming USDC shows up
-  // before listing. Soft-fails on either step.
+  // List renders immediately from existing DB rows; deposit scan runs in
+  // background and triggers a silent re-fetch if new rows were inserted.
   const fetchRecentTx = useCallback(async () => {
     if (!authenticated) return;
     try {
       const token = await getAccessToken();
       if (!token) return;
 
-      // Fire-and-forget deposit scan. Don't await its completion strictly —
-      // but we want the list to reflect new deposits when they exist.
-      try {
-        await api<{ inserted: number }>("/transactions/scan-deposits", {
-          method: "POST",
-          token,
-        });
-      } catch (scanErr) {
-        console.warn("[dashboard] deposit scan failed:", scanErr);
-      }
+      // Background scan — doesn't block list render.
+      (async () => {
+        try {
+          const r = await api<{ inserted: number }>(
+            "/transactions/scan-deposits",
+            { method: "POST", token },
+          );
+          if (r.inserted > 0) {
+            const fresh = await api<TransactionListResponse>(
+              "/transactions?limit=5",
+              { token },
+            );
+            setRecentTx(fresh.transactions);
+          }
+        } catch (scanErr) {
+          console.warn("[dashboard] deposit scan failed:", scanErr);
+        }
+      })();
 
       const res = await api<TransactionListResponse>(
         "/transactions?limit=5",

@@ -65,25 +65,34 @@ export default function HistoryPage() {
         const token = await getAccessToken();
         if (!token) throw new Error("no access token");
 
-        // Trigger deposit scan on first page load (not on pagination, not on refresh).
-        // Idempotent — backend dedupes via signature unique constraint.
-        if (!opts.append && !opts.before) {
-          try {
-            await api<{ inserted: number }>(
-              "/transactions/scan-deposits",
-              { method: "POST", token },
-            );
-          } catch (scanErr) {
-            console.warn("[history] deposit scan failed:", scanErr);
-          }
-        }
-
         const params = new URLSearchParams();
         const statusCsv = groupToStatusCsv(filter);
         if (statusCsv) params.set("status", statusCsv);
         if (opts.before) params.set("before", opts.before);
         params.set("limit", "20");
         const path = `/transactions?${params.toString()}`;
+
+        // Fire deposit scan in BACKGROUND on first page load — don't block
+        // the list render. When scan finishes, refetch list silently if any
+        // new rows were inserted. Worst case: list renders instantly,
+        // refresh happens 1-3s later if there are new deposits.
+        if (!opts.append && !opts.before) {
+          (async () => {
+            try {
+              const r = await api<{ inserted: number }>(
+                "/transactions/scan-deposits",
+                { method: "POST", token },
+              );
+              if (r.inserted > 0) {
+                // Silently refresh list with new data
+                fetchPage({ append: false });
+              }
+            } catch (scanErr) {
+              console.warn("[history] deposit scan failed:", scanErr);
+            }
+          })();
+        }
+
         const res = await api<TransactionListResponse>(path, { token });
         setItems((prev) => {
           if (opts.append && prev) return [...prev, ...res.transactions];

@@ -22,7 +22,7 @@ import { env } from "../env.js";
 
 const TOKEN_PROGRAM_ID_STR = TOKEN_PROGRAM_ADDRESS as unknown as string;
 
-interface RpcSignatureEntry {
+export interface RpcSignatureEntry {
   signature: string;
   slot: number;
   blockTime: number | null;
@@ -78,61 +78,56 @@ export async function deriveUsdcAta(userWallet: string): Promise<string> {
 }
 
 /**
- * Fetch & parse recent INCOMING USDC transfers to the user's ATA.
- * Outgoing transfers (where the user is the authority/source) are skipped —
- * those are already recorded as qris_payment rows.
- *
- * `limit` is the number of recent signatures to inspect, NOT deposits to
- * return — most signatures will be skipped (errors, outgoing, non-token).
+ * Fetch recent signatures touching the user's USDC ATA. Cheap (1 RPC call).
+ * Caller filters against DB before doing the expensive `parseDepositTx` step.
  */
-export async function fetchRecentDeposits(
+export async function fetchRecentSignatures(
   userWallet: string,
-  limit = 15,
-): Promise<ParsedDeposit[]> {
+  limit = 10,
+): Promise<{ usdcAta: string; signatures: RpcSignatureEntry[] }> {
   const usdcAta = await deriveUsdcAta(userWallet);
+  const signatures = await heliusRpc<RpcSignatureEntry[]>(
+    "getSignaturesForAddress",
+    [usdcAta, { limit }],
+  );
+  return { usdcAta, signatures: signatures ?? [] };
+}
 
-  // 1. Get recent signatures touching the user's ATA.
-  const sigs = await heliusRpc<RpcSignatureEntry[]>("getSignaturesForAddress", [
-    usdcAta,
-    { limit },
-  ]);
-  if (!sigs || sigs.length === 0) return [];
-
-  const deposits: ParsedDeposit[] = [];
-
-  // 2. For each signature, fetch parsed tx and look for incoming Token transfer
-  //    where destination = our ATA AND authority != user wallet.
-  //    Sequential to avoid Helius RPC rate limits; small N (≤15) keeps it fast.
-  for (const entry of sigs) {
-    if (entry.err) continue;
-
-    let tx: RpcTransactionResult | null;
-    try {
-      tx = await heliusRpc<RpcTransactionResult | null>("getTransaction", [
-        entry.signature,
-        { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 },
-      ]);
-    } catch (err) {
-      console.warn(
-        `[deposits] getTransaction(${entry.signature.slice(0, 8)}…) failed:`,
-        (err as Error).message,
-      );
-      continue;
-    }
-    if (!tx) continue;
-
-    const parsed = parseIncomingTokenTransfer(tx, usdcAta, userWallet);
-    if (!parsed) continue;
-
-    deposits.push({
-      signature: entry.signature,
-      amount_lamports: parsed.amount,
-      source_authority: parsed.authority,
-      block_time: tx.blockTime ?? entry.blockTime,
-    });
+/**
+ * Fetch + parse a single tx. Returns null if not an incoming USDC transfer
+ * to ourAta (e.g., outgoing payment, self-transfer, non-token tx, errored tx).
+ * Designed to be called in parallel via Promise.all.
+ */
+export async function parseDepositTx(
+  signature: string,
+  ourAta: string,
+  ourWallet: string,
+  fallbackBlockTime: number | null,
+): Promise<ParsedDeposit | null> {
+  let tx: RpcTransactionResult | null;
+  try {
+    tx = await heliusRpc<RpcTransactionResult | null>("getTransaction", [
+      signature,
+      { encoding: "jsonParsed", maxSupportedTransactionVersion: 0 },
+    ]);
+  } catch (err) {
+    console.warn(
+      `[deposits] getTransaction(${signature.slice(0, 8)}…) failed:`,
+      (err as Error).message,
+    );
+    return null;
   }
+  if (!tx) return null;
 
-  return deposits;
+  const parsed = parseIncomingTokenTransfer(tx, ourAta, ourWallet);
+  if (!parsed) return null;
+
+  return {
+    signature,
+    amount_lamports: parsed.amount,
+    source_authority: parsed.authority,
+    block_time: tx.blockTime ?? fallbackBlockTime,
+  };
 }
 
 interface ParsedIncoming {

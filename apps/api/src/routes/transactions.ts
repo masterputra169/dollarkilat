@@ -8,7 +8,10 @@ import type {
 } from "@dollarkilat/shared";
 import { authMiddleware, type AuthVariables } from "../middleware/auth.js";
 import { supabaseAdmin } from "../lib/supabase.js";
-import { fetchRecentDeposits } from "../lib/solana-deposits.js";
+import {
+  fetchRecentSignatures,
+  parseDepositTx,
+} from "../lib/solana-deposits.js";
 
 export const transactions = new Hono<{ Variables: AuthVariables }>();
 
@@ -155,25 +158,46 @@ transactions.post("/scan-deposits", async (c) => {
     return c.json({ inserted: 0, reason: "no_address" });
   }
 
-  let deposits;
+  // Step 1: cheap — get last N signatures touching the USDC ATA (1 RPC call).
+  let sigInfo;
   try {
-    deposits = await fetchRecentDeposits(u.solana_address as string, 15);
+    sigInfo = await fetchRecentSignatures(u.solana_address as string, 10);
   } catch (err) {
-    console.warn("[transactions/scan] helius failed:", (err as Error).message);
+    console.warn("[transactions/scan] helius sigs failed:", (err as Error).message);
     return c.json({ inserted: 0, error: "fetch_failed" });
   }
+  const validEntries = sigInfo.signatures.filter((s) => !s.err);
+  if (validEntries.length === 0) return c.json({ inserted: 0 });
 
-  if (deposits.length === 0) return c.json({ inserted: 0 });
-
-  // Filter signatures already in DB
-  const sigList = deposits.map((d) => d.signature);
+  // Step 2: filter sigs already in our DB. Most calls hit this — every
+  // dashboard load fires scan; on the 2nd+ load nothing should be new.
+  const sigList = validEntries.map((s) => s.signature);
   const { data: existing } = await supabaseAdmin
     .from("transactions")
     .select("signature")
     .in("signature", sigList);
   const existingSet = new Set((existing ?? []).map((r) => r.signature));
+  const candidateEntries = validEntries.filter(
+    (s) => !existingSet.has(s.signature),
+  );
+  if (candidateEntries.length === 0) return c.json({ inserted: 0 });
 
-  const newOnes = deposits.filter((d) => !existingSet.has(d.signature));
+  // Step 3: only NOW fetch full tx detail for unknown sigs — in parallel.
+  // This is the expensive part (1 RPC per sig). Parallelism cuts wall time
+  // from N×500ms sequential to ~500ms regardless of N.
+  const parsedList = await Promise.all(
+    candidateEntries.map((entry) =>
+      parseDepositTx(
+        entry.signature,
+        sigInfo.usdcAta,
+        u.solana_address as string,
+        entry.blockTime,
+      ),
+    ),
+  );
+  const newOnes = parsedList.filter(
+    (d): d is NonNullable<typeof d> => d !== null,
+  );
   if (newOnes.length === 0) return c.json({ inserted: 0 });
 
   // Sentinel values for fields that are NOT NULL in the original schema
