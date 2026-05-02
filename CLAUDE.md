@@ -223,26 +223,24 @@ Jangan suggest library baru tanpa alasan kuat. Stack sudah locked untuk consiste
 
 > Update this section as you build.
 
-- **Day:** Day 4 done (2026-04-30) → Day 5 next
-- **Phase:** Onboarding + receive flow + PWA install — complete
-- **Last completed (Day 3):**
-  - Backend `lib/{solana,oracle}.ts` — Helius RPC USDC balance + CoinGecko USDC→IDR (cache 60s)
-  - Routes `/balance/:address` (auth-gated) + `/rate/usdc-idr` (public)
-  - Frontend `lib/format.ts` — Rupiah/USDC formatters via BigNumber + Intl
-  - Dashboard polls balance+rate every 30s, manual refresh, mono tabular nums, smart empty states
-- **Last completed (Day 4):**
-  - Migrasi `0002_consents.sql` — `delegated_actions_consents` (append-only audit log)
-  - Routes `POST/GET/DELETE /consent/delegated` — verify Privy delegation flag sebelum write row
-  - `/onboarding/consent` (One-Tap via `useSessionSigners` + Mode Aman) — idempotent on duplicate signers
-  - `/receive` — address + QR (qrcode lib SVG output) + copy/share API
-  - PWA: `<InstallPrompt />` bottom sheet + `<InstallButton />` (landing nav + dashboard header) dengan Brave/iOS/Chromium-aware tooltip fallback
-  - PNG manifest icons 192/512 + maskable (generated dari SVG via sharp)
-  - `scripts/setup-treasury.ts` — idempotent ATA creation
-  - Privy migration: `useDelegatedActions` → `useSessionSigners` (TEE-based, env: `NEXT_PUBLIC_PRIVY_SIGNER_ID`)
-  - Tested E2E di Brave + Chrome: install dialog native muncul saat klik tombol header
-- **Currently working on:** —
+- **Day:** Day 8 in-progress (2026-05-02) — history + settings done; demo prep next
+- **Phase:** Polish — surface gaps + demo rehearsal
+- **Last completed (Day 5):** QRIS parser (EMVCo TLV) + camera scanner + Mock PJP + `/pay` page state machine (commit c83b110)
+- **Last completed (Day 6):** `/qris/quote` endpoint + static QR support + state machine refinements (commit d4827ff)
+- **Last completed (Day 7):** Real Solana fee-payer signing + tx record + Flip Bisnis sandbox integration + merchant view (commit 41eb9de)
+- **Last completed (Day 8 — partial):**
+  - Cleanup DOKU PJP scaffold (commit 358c7f9) — sandbox confirmed wrong product type
+  - Docs: seed `_lessons.md` (resolved trade-offs) + `_open-problems.md` (15 unresolved) + EMVCo TLV reference in `_v2-ideas.md`
+  - `/history` list + filter chips + cursor pagination (commit c183933)
+  - `/history/[id]` detail with timeline + Solana Explorer link (commit c183933)
+  - On-chain deposit detection via Helius polling (commit eda9d2b) — non-blocking scan + DB-filter-first + parallel parse (perf 7331626)
+  - Sentinel values for deposit rows so migration 0006 stays optional (commit 936bb47)
+  - Block-time as canonical `created_at` for chronological ordering (commit 41e7212)
+  - `/settings` page — One-Tap status + revoke flow (Privy `removeSessionSigners` + DB row) + account/app/support sections + confirm modal
+  - Polished `/offline` page with design system tokens + retry button + connectivity tips
+- **Currently working on:** Day 8 polish (settings + offline done; demo rehearsal + pitch deck pending)
 - **Blockers:** None
-- **Next:** Day 5 — QRIS decoder (`lib/qris-parser.ts` EMVCo TLV) + camera scanner + PJP mock service
+- **Next:** Demo rehearsal script (Loom recording flow + edge case handling) → pitch deck v1
 
 ---
 

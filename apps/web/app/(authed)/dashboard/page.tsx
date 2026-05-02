@@ -12,10 +12,10 @@ import {
   Check,
   ChevronRight,
   Copy,
-  LogOut,
   QrCode,
   Receipt,
   RefreshCcw,
+  Settings as SettingsIcon,
   Store,
 } from "lucide-react";
 import type {
@@ -43,7 +43,7 @@ import { InstallButton } from "@/components/install-button";
 const BALANCE_POLL_MS = 30_000;
 
 export default function DashboardPage() {
-  const { ready, authenticated, user, logout, getAccessToken } = usePrivy();
+  const { ready, authenticated, user, getAccessToken } = usePrivy();
   const { wallets: solanaWallets } = useSolanaWallets();
   const router = useRouter();
 
@@ -290,14 +290,13 @@ export default function DashboardPage() {
               </span>
             )}
             <InstallButton iconOnly />
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => logout()}
-              leftIcon={<LogOut className="size-3.5" />}
+            <Link
+              href="/settings"
+              aria-label="Setelan"
+              className="inline-flex size-9 items-center justify-center rounded-full text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"
             >
-              <span className="hidden sm:inline">Keluar</span>
-            </Button>
+              <SettingsIcon className="size-4" />
+            </Link>
           </div>
         </div>
       </header>
