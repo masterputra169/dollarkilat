@@ -12,6 +12,7 @@ import { webhooks } from "./routes/webhooks.js";
 import { balance } from "./routes/balance.js";
 import { merchants } from "./routes/merchants.js";
 import { rate } from "./routes/rate.js";
+import { transactions } from "./routes/transactions.js";
 import { users } from "./routes/users.js";
 
 const app = new Hono();
@@ -38,6 +39,7 @@ app.route("/webhooks", webhooks);
 app.route("/balance", balance);
 app.route("/merchants", merchants);
 app.route("/rate", rate);
+app.route("/transactions", transactions);
 
 app.onError((err, c) => {
   console.error("[unhandled]", err);

@@ -200,3 +200,57 @@ export const MerchantDashboardResponseSchema = z.object({
 export type MerchantDashboardResponse = z.infer<
   typeof MerchantDashboardResponseSchema
 >;
+
+// ── User transaction history ──────────────────────────────────────
+// User-side outgoing payment view. Different from MerchantTransaction
+// (merchant-side income view) because the user cares about: which merchant
+// they paid, how much in USDC + IDR, what the rate was, fee paid, signature.
+
+export const TransactionStatusEnum = z.enum([
+  "created",
+  "user_signing",
+  "solana_pending",
+  "solana_confirmed",
+  "pjp_pending",
+  "completed",
+  "failed_settlement",
+  "rejected",
+]);
+
+export const UserTransactionSchema = z.object({
+  id: z.string().uuid(),
+  type: z.enum(["qris_payment", "deposit"]),
+  status: TransactionStatusEnum,
+  amount_idr: z.number().int(),
+  amount_usdc_lamports: z.string(),
+  app_fee_idr: z.number().int(),
+  exchange_rate: z.string(),
+  merchant_name: z.string(),
+  merchant_id: z.string().nullable(),
+  acquirer: z.string().nullable(),
+  signature: z.string().nullable(),
+  pjp_partner: z.string(),
+  pjp_id: z.string().nullable(),
+  pjp_settled_at: z.string().datetime().nullable(),
+  failure_reason: z.string().nullable(),
+  created_at: z.string().datetime(),
+  updated_at: z.string().datetime(),
+});
+export type UserTransaction = z.infer<typeof UserTransactionSchema>;
+
+export const TransactionListResponseSchema = z.object({
+  transactions: z.array(UserTransactionSchema),
+  // Cursor pagination — `next_cursor` = ISO created_at of the last row,
+  // null when no more pages. Client passes ?before=<cursor> to fetch next.
+  next_cursor: z.string().datetime().nullable(),
+});
+export type TransactionListResponse = z.infer<
+  typeof TransactionListResponseSchema
+>;
+
+export const TransactionDetailResponseSchema = z.object({
+  transaction: UserTransactionSchema,
+});
+export type TransactionDetailResponse = z.infer<
+  typeof TransactionDetailResponseSchema
+>;

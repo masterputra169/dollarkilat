@@ -10,18 +10,28 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Check,
+  ChevronRight,
   Copy,
   LogOut,
   QrCode,
+  Receipt,
   RefreshCcw,
   Store,
 } from "lucide-react";
 import type {
   BalanceResponse,
   RateResponse,
+  TransactionListResponse,
   User,
   UserSyncResponse,
+  UserTransaction,
 } from "@dollarkilat/shared";
+import {
+  formatTxRelative,
+  statusToLabel,
+  statusToTone,
+} from "@/lib/tx-status";
+import { Pill } from "@/components/ui/pill";
 import { api, ApiError } from "@/lib/api";
 import { formatRupiah, formatUSDC, usdcToIdr } from "@/lib/format";
 import { Logo } from "@/components/brand/logo";
@@ -46,6 +56,7 @@ export default function DashboardPage() {
   const [balanceLoading, setBalanceLoading] = useState(false);
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [recentTx, setRecentTx] = useState<UserTransaction[] | null>(null);
 
   useEffect(() => {
     if (ready && !authenticated) {
@@ -153,6 +164,28 @@ export default function DashboardPage() {
       setBalanceLoading(false);
     }
   }, [solanaAddress, getAccessToken]);
+
+  // Recent transactions — fetched once on mount and on manual refresh.
+  // Not on the 30s poll loop to keep API load low; user pulls /history for fresh.
+  const fetchRecentTx = useCallback(async () => {
+    if (!authenticated) return;
+    try {
+      const token = await getAccessToken();
+      if (!token) return;
+      const res = await api<TransactionListResponse>(
+        "/transactions?limit=5",
+        { token },
+      );
+      setRecentTx(res.transactions);
+    } catch (err) {
+      console.warn("[dashboard] recent tx fetch failed:", err);
+      setRecentTx([]);
+    }
+  }, [authenticated, getAccessToken]);
+
+  useEffect(() => {
+    if (ready && authenticated) fetchRecentTx();
+  }, [ready, authenticated, fetchRecentTx]);
 
   // Smart polling — only when (tab visible AND online). Browsers throttle
   // background timers anyway, but stopping cleanly saves Helius RPC quota
@@ -371,22 +404,81 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* empty / activity state */}
-        <Card variant="outline">
-          <div className="flex flex-col items-center px-5 py-10 text-center sm:px-6 sm:py-12">
-            <div className="flex size-12 items-center justify-center rounded-full bg-[var(--color-bg-subtle)] text-[var(--color-fg-subtle)]">
-              <ArrowUpFromLine className="size-5" />
+        {/* recent activity */}
+        {recentTx === null ? (
+          <Card variant="outline">
+            <div className="px-5 py-6 sm:px-6">
+              <CardLabel>Riwayat</CardLabel>
+              <div className="mt-4 space-y-2.5">
+                {Array.from({ length: 3 }).map((_, i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
             </div>
-            <h3 className="mt-4 text-base font-semibold text-[var(--color-fg)]">
-              {isZeroBalance ? "Belum ada USDC" : "Belum ada transaksi"}
-            </h3>
-            <p className="mt-1.5 max-w-sm text-sm text-[var(--color-fg-muted)]">
-              {isZeroBalance
-                ? "Klik Terima untuk dapat alamat deposit, atau kirim USDC ke alamat di atas."
-                : "Riwayat akan muncul di sini setelah Day 9."}
-            </p>
-          </div>
-        </Card>
+          </Card>
+        ) : recentTx.length === 0 ? (
+          <Card variant="outline">
+            <div className="flex flex-col items-center px-5 py-10 text-center sm:px-6 sm:py-12">
+              <div className="flex size-12 items-center justify-center rounded-full bg-[var(--color-bg-subtle)] text-[var(--color-fg-subtle)]">
+                <ArrowUpFromLine className="size-5" />
+              </div>
+              <h3 className="mt-4 text-base font-semibold text-[var(--color-fg)]">
+                {isZeroBalance ? "Belum ada USDC" : "Belum ada transaksi"}
+              </h3>
+              <p className="mt-1.5 max-w-sm text-sm text-[var(--color-fg-muted)]">
+                {isZeroBalance
+                  ? "Klik Terima untuk dapat alamat deposit, atau kirim USDC ke alamat di atas."
+                  : "Setelah kamu bayar lewat QRIS, riwayat akan muncul di sini."}
+              </p>
+            </div>
+          </Card>
+        ) : (
+          <Card>
+            <div className="flex items-center justify-between px-5 pb-2 pt-5 sm:px-6">
+              <CardLabel>Riwayat terbaru</CardLabel>
+              <Link
+                href="/history"
+                className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
+              >
+                Lihat semua
+                <ChevronRight className="size-3.5" />
+              </Link>
+            </div>
+            <ul className="divide-y divide-[var(--color-border-subtle)]">
+              {recentTx.map((tx) => (
+                <li key={tx.id}>
+                  <Link
+                    href={`/history/${tx.id}`}
+                    className="group flex items-center gap-3 px-5 py-3 transition-colors hover:bg-[var(--color-bg-subtle)] sm:px-6"
+                  >
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[var(--color-bg-subtle)] text-[var(--color-fg-subtle)]">
+                      <Receipt className="size-4" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="truncate text-sm font-medium text-[var(--color-fg)]">
+                          {tx.merchant_name || "Merchant tanpa nama"}
+                        </p>
+                        <p className="shrink-0 font-mono text-sm font-semibold tabular-nums text-[var(--color-fg)]">
+                          {formatRupiah(tx.amount_idr)}
+                        </p>
+                      </div>
+                      <div className="mt-0.5 flex items-center justify-between gap-2">
+                        <Pill tone={statusToTone(tx.status)}>
+                          {statusToLabel(tx.status)}
+                        </Pill>
+                        <span className="shrink-0 text-[11px] text-[var(--color-fg-subtle)]">
+                          {formatTxRelative(tx.created_at)}
+                        </span>
+                      </div>
+                    </div>
+                    <ChevronRight className="size-4 shrink-0 text-[var(--color-fg-faint)] transition-transform group-hover:translate-x-0.5" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Card>
+        )}
       </div>
     </main>
   );
