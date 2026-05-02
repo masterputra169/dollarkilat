@@ -368,7 +368,9 @@ body {
   display: inline-block;
   opacity: 0;
   animation: hero-line-in 1.15s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: transform, opacity, filter, clip-path;
+  /* will-change omitted: finite ~1s animation. Modern browsers auto-promote
+     animating elements; persistent will-change keeps a compositor layer
+     allocated forever after the animation ends, costing GPU memory. */
 }
 .hero-anim-line-1 { animation-delay: 100ms; }
 
@@ -394,7 +396,7 @@ body {
   animation:
     hero-line-in 1.15s cubic-bezier(0.16, 1, 0.3, 1) 400ms forwards,
     hero-shimmer-sweep 2.6s cubic-bezier(0.16, 1, 0.3, 1) 1700ms 1 forwards;
-  will-change: transform, opacity, filter, clip-path, background-position;
+  /* will-change omitted: finite animation chain, see .hero-anim-line note. */
 }
 
 /* Cascade the rest of the hero (subhead + CTA + trust + preview) so the
@@ -406,7 +408,7 @@ body {
 .hero-anim-fade {
   opacity: 0;
   animation: hero-fade-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: transform, opacity;
+  /* will-change omitted: finite ~1s animation. */
 }
 .hero-anim-fade-1 { animation-delay: 900ms; }
 .hero-anim-fade-2 { animation-delay: 1080ms; }
@@ -479,6 +481,18 @@ body {
 @media (prefers-reduced-motion: reduce) {
   .ambient-blob-1, .ambient-blob-2, .ambient-blob-3 {
     animation: none;
+  }
+}
+
+/* Hide ambient blobs on small screens entirely. The combination of
+   filter:blur(80px) + mix-blend-mode:screen across 3 large fixed-size
+   elements is one of the most expensive paint patterns on mobile GPUs
+   (especially mid-range Android). Desktop renders them fine; mobile
+   gets a flatter look in exchange for a much faster paint loop and
+   noticeably lower GPU memory pressure. */
+@media (max-width: 640px) {
+  .ambient-blob-1, .ambient-blob-2, .ambient-blob-3 {
+    display: none;
   }
 }
 

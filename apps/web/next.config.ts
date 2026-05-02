@@ -19,6 +19,20 @@ const nextConfig: NextConfig = {
   // Workspace package — consume TS source directly. Without this, Next/webpack
   // can't resolve the `.js` ESM extensions used in shared's source imports.
   transpilePackages: ["@dollarkilat/shared"],
+  // Tree-shake icon barrels. Without this, importing `{ Foo, Bar }` from
+  // lucide-react can pull tens of unrelated icons into the chunk because
+  // bundlers can't statically prove which exports are unused. Next adds the
+  // package to its compile-time list of optimizable barrels — produces the
+  // smallest viable chunk. Other big barrels added defensively.
+  experimental: {
+    optimizePackageImports: ["lucide-react", "@privy-io/react-auth", "@solana/kit"],
+  },
+  // Image pipeline: keep WebP/AVIF transforms enabled (Next default), and
+  // cap maximum size of cached images (defense against unbounded growth).
+  images: {
+    formats: ["image/avif", "image/webp"],
+    minimumCacheTTL: 60 * 60 * 24 * 30, // 30 days for unchanged assets
+  },
   // Defense-in-depth headers. Conservative: no aggressive CSP yet (Privy
   // embedded wallet iframes + Tailwind inline styles need careful tuning).
   // Tier-1 protections that don't risk breaking anything:
