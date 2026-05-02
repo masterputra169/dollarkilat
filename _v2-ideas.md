@@ -133,3 +133,52 @@ True open-loop "bayar any QRIS merchant" = butuh PJSP partnership atau license s
 ✅ Demo aggregation: merchant dashboard show income from linked transactions
 
 Closed-loop = production-ready secara teknis, tinggal scale via merchant onboarding effort.
+
+---
+
+## Production hardening backlog (post-hackathon)
+
+> Audit per 2026-05-02. Backend hackathon-grade — cukup buat demo + onboard puluhan-ratusan beta user. Belum siap pegang uang real ribuan user. Kerjain berurutan saat lulus dari MVP phase.
+
+### CRITICAL — uang/uptime risk
+
+- **Rate limit in-memory → Upstash Redis.** Multi-instance deploy bocor (tiap instance punya bucket sendiri, user bisa burst 2x limit). Effort: 2 jam.
+- **Graceful shutdown handler.** SIGTERM dari Railway saat redeploy bisa kill in-flight signing → user kebayar tapi USDC ga ke-debit (atau sebaliknya). Tambahin signal handler + `server.close()`. Effort: 30 min.
+- **Compile `packages/shared` ke JS, balik ke `node dist/index.js`.** Saat ini production pake `tsx src/index.ts` — slow cold start, no minify, full source maps. Hackathon shortcut, perlu di-fix sebelum scale. Effort: 2 jam.
+- **Pin all `latest` deps ke exact versions.** `@privy-io/server-auth`, `@solana/kit`, `@solana-program/*`, `@privy-io/react-auth`, `lucide-react` — npm publish breaking change → next deploy gagal/bug subtle. Effort: 30 min.
+- **Devnet → mainnet migration.** Butuh smart contract audit (kalo ada custom program), e2e re-test, beneran handle real money. Effort: 2-4 minggu.
+- **Flip Bisnis production cert.** Sandbox sekarang. Production butuh KYB + business agreement + production credentials. Effort: 2-8 minggu (proses business, bukan tech).
+- **Fee payer key off env var → KMS/HSM/Privy Server Wallet.** Bocor = treasury habis. Effort: 1 hari.
+
+### HIGH — observability/reliability
+
+- **Structured logger (pino + JSON).** Saat ini `console.log` semua, susah search/aggregate di Railway logs. Effort: 1 jam.
+- **Request ID + tracing middleware.** `c.set('requestId', crypto.randomUUID())` di awal pipeline, propagate ke downstream calls (Privy, Helius, Flip). Bikin debugging user complaint jauh lebih cepet. Effort: 1 jam.
+- **Sentry integration.** Crash silent kecuali liat log manual. Effort: 30 min.
+- **Alerting (Better Uptime / Pingdom).** Service down jam 3 pagi, baru tau pas user complaint. Effort: 2 jam.
+- **DB backup / PITR.** Supabase Free Tier ga ada PITR — production wajib paid plan. Effort: setup 1 jam + monthly fee.
+- **Request body size limit + timeout.** POST 100MB body bisa OOM-kill instance. Slow request hold connection forever. Effort: 30 min.
+- **Helius paid tier + fallback RPC (Triton/QuickNode).** Free tier 100k credits/day, habis = service mati. Effort: 1 jam config + monthly fee.
+- **HA setup — 2+ Railway replicas + LB.** Single instance crash = full downtime. Butuh Redis dulu (rate limit). Effort: 1 jam setelah Redis.
+
+### MEDIUM — hygiene
+
+- **Hapus dev fallback di `env.ts`.** Kalo `NODE_ENV` salah set ke "development" di Railway → boot dengan `DEV_UNSET` keys → silent failure. Guard dengan `process.env.RAILWAY_ENVIRONMENT` check. Effort: 15 min.
+- **DB migration runner di CI/deploy step.** Saat ini migration manual via Supabase dashboard → race condition antara deploy code + schema. Pake Supabase migrations CLI atau drizzle-kit. Effort: 3 jam.
+- **Audit log table.** Siapa ngapain kapan — wajib untuk compliance dan incident postmortem. Effort: 4 jam.
+- **Load testing (k6/artillery).** TPS limit ga tau. Baseline 100 RPS minimum sebelum public launch. Effort: 1 hari.
+- **CORS audit.** `credentials: true` + multi-origin sekarang fine, tapi lock exact origin di production, no wildcard.
+
+### LOW — nice to have
+
+- OpenAPI spec / API docs (Hono punya `@hono/zod-openapi`)
+- Automated test suite (Vitest + supertest untuk integration)
+- CI/CD beyond Railway/Vercel auto-deploy (GitHub Actions: lint + typecheck + test gate sebelum deploy)
+- CSP headers customization (sekarang pake default `secureHeaders()`)
+
+### Total effort estimate
+
+CRITICAL + HIGH (technical only): **~5-7 hari fokus.**
+Plus business stuff (Flip prod cert, smart contract audit, mainnet migration): **2-8 minggu paralel.**
+
+Untuk hackathon submission + MVP launch ke 100 friendly user, backend cukup as-is. Kasih disclaimer "beta, devnet only" dan jalan.
