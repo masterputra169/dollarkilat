@@ -29,6 +29,7 @@ import {
 } from "lucide-react";
 import type { ConsentResponse } from "@dollarkilat/shared";
 import { api, ApiError } from "@/lib/api";
+import { readCache, writeCache } from "@/lib/swr-cache";
 import { formatRupiah } from "@/lib/format";
 import { Button } from "@/components/ui/button";
 import { Card, CardLabel } from "@/components/ui/card";
@@ -43,8 +44,14 @@ export default function SettingsPage() {
   const { wallets: solanaWallets } = useSolanaWallets();
   const router = useRouter();
 
-  const [consent, setConsent] = useState<ConsentResponse | null>(null);
-  const [loadingConsent, setLoadingConsent] = useState(true);
+  // Hydrate from in-memory cache so revisits render instantly while a
+  // background fetch refreshes the data.
+  const [consent, setConsent] = useState<ConsentResponse | null>(() =>
+    readCache<ConsentResponse>("settings:consent"),
+  );
+  const [loadingConsent, setLoadingConsent] = useState(
+    () => readCache("settings:consent") === null,
+  );
   const [revoking, setRevoking] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [confirmExport, setConfirmExport] = useState(false);
@@ -57,15 +64,15 @@ export default function SettingsPage() {
 
   const fetchConsent = useCallback(async () => {
     if (!authenticated) return;
-    setLoadingConsent(true);
     try {
       const token = await getAccessToken();
       if (!token) throw new Error("no access token");
       const res = await api<ConsentResponse>("/consent/delegated", { token });
       setConsent(res);
+      writeCache("settings:consent", res);
     } catch (err) {
       console.warn("[settings] consent fetch failed:", err);
-      setConsent({ consent: null, wallet_delegated: false });
+      setConsent((prev) => prev ?? { consent: null, wallet_delegated: false });
     } finally {
       setLoadingConsent(false);
     }

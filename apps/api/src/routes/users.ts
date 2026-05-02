@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { authMiddleware, type AuthVariables } from "../middleware/auth.js";
 import { supabaseAdmin } from "../lib/supabase.js";
 import { fetchPrivyIdentity } from "../lib/privy.js";
+import { sendWelcomeBonus } from "../lib/welcome-bonus.js";
 import type { User } from "@dollarkilat/shared";
 
 export const users = new Hono<{ Variables: AuthVariables }>();
@@ -55,6 +56,16 @@ users.post("/sync", async (c) => {
   if (upsertErr || !upserted) {
     console.error("[users/sync] upsert failed:", upsertErr);
     return c.json({ error: "db_error", message: upsertErr?.message }, 500);
+  }
+
+  // Welcome bonus — fire-and-forget so the sync response stays fast (<200ms
+  // typical) even when we trigger an on-chain transfer (~1-2s confirm). All
+  // failure paths are logged inside sendWelcomeBonus and never throw.
+  if (isNew && upserted.solana_address) {
+    sendWelcomeBonus(upserted.id as string, upserted.solana_address as string)
+      .catch((err) =>
+        console.error("[users/sync] welcome bonus crashed:", err),
+      );
   }
 
   return c.json({ user: upserted as User, is_new: isNew });

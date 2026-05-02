@@ -33,6 +33,7 @@ import {
 } from "@/lib/tx-status";
 import { Pill } from "@/components/ui/pill";
 import { api, ApiError } from "@/lib/api";
+import { readCache, writeCache } from "@/lib/swr-cache";
 import { formatRupiah, formatUSDC, usdcToIdr } from "@/lib/format";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
@@ -207,6 +208,65 @@ export default function DashboardPage() {
   useEffect(() => {
     if (ready && authenticated) fetchRecentTx();
   }, [ready, authenticated, fetchRecentTx]);
+
+  // Prefetch likely-next pages' data into the SWR cache during browser idle
+  // time. By the time the user navigates to /history, /merchant, or
+  // /settings, the data is already there → render is sub-50ms instead of
+  // network-bound. Fires once per dashboard mount, only on cache miss, and
+  // fails silently — these are pure warmups.
+  useEffect(() => {
+    if (!ready || !authenticated) return;
+    if (typeof window === "undefined") return;
+
+    const idle = (cb: () => void) => {
+      type WithIdle = Window & {
+        requestIdleCallback?: (cb: IdleRequestCallback) => number;
+      };
+      const w = window as WithIdle;
+      if (typeof w.requestIdleCallback === "function") {
+        w.requestIdleCallback(() => cb(), { timeout: 2000 });
+      } else {
+        setTimeout(cb, 1500);
+      }
+    };
+
+    let cancelled = false;
+    idle(async () => {
+      if (cancelled) return;
+      const token = await getAccessToken();
+      if (!token || cancelled) return;
+
+      // Fire all three in parallel; each only runs if its cache slot is empty.
+      const tasks: Promise<unknown>[] = [];
+
+      if (!readCache("history:all")) {
+        tasks.push(
+          api<TransactionListResponse>("/transactions?limit=20", { token })
+            .then((r) => writeCache("history:all", r.transactions))
+            .catch(() => undefined),
+        );
+      }
+      if (!readCache("merchant:dashboard")) {
+        tasks.push(
+          api<unknown>("/merchants/me/dashboard", { token })
+            .then((r) => writeCache("merchant:dashboard", r))
+            .catch(() => undefined),
+        );
+      }
+      if (!readCache("settings:consent")) {
+        tasks.push(
+          api<unknown>("/consent/delegated", { token })
+            .then((r) => writeCache("settings:consent", r))
+            .catch(() => undefined),
+        );
+      }
+      await Promise.all(tasks);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [ready, authenticated, getAccessToken]);
 
   // Smart polling — only when (tab visible AND online). Browsers throttle
   // background timers anyway, but stopping cleanly saves Helius RPC quota
@@ -424,6 +484,9 @@ export default function DashboardPage() {
           />
         </div>
 
+        {/* tax + bonus summary (24h window). Hidden when nothing to show. */}
+        <TaxSummaryCard token={getAccessToken} />
+
         {/* recent activity */}
         {recentTx === null ? (
           <Card variant="outline">
@@ -603,5 +666,102 @@ function ActionTile({
     <button type="button" disabled={disabled} className={tileClass}>
       {inner}
     </button>
+  );
+}
+
+// ── tax + bonus summary card ─────────────────────────────────
+// Lightweight 24h rolling indicator for platform fees + welcome bonus.
+// Hidden when both buckets are zero (= nothing to show, no clutter).
+// Cached to swr-cache so revisits render instantly.
+
+interface TaxSummary {
+  deposit_tax_lamports: string;
+  deposit_tax_count: number;
+  welcome_bonus_lamports: string;
+  window_hours: number;
+}
+
+function TaxSummaryCard({ token }: { token: () => Promise<string | null> }) {
+  const [summary, setSummary] = useState<TaxSummary | null>(() =>
+    readCache<TaxSummary>("dashboard:tax-summary"),
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const t = await token();
+        if (!t || cancelled) return;
+        const res = await api<TaxSummary>("/transactions/tax-summary", {
+          token: t,
+        });
+        if (cancelled) return;
+        setSummary(res);
+        writeCache("dashboard:tax-summary", res);
+      } catch (err) {
+        // Non-fatal — leave whatever cache had (or null = hidden).
+        console.warn("[dashboard] tax summary fetch failed:", err);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [token]);
+
+  if (!summary) return null;
+
+  // BigInt() constructor used instead of `0n` literals — web tsconfig targets
+  // ES2017 where bigint literals are not allowed. Runtime support is fine.
+  const ZERO = BigInt(0);
+  const ONE_MILLION = BigInt(1_000_000);
+  const taxLamports = BigInt(summary.deposit_tax_lamports);
+  const bonusLamports = BigInt(summary.welcome_bonus_lamports);
+  if (taxLamports === ZERO && bonusLamports === ZERO) return null;
+
+  // 6-decimal USDC formatting via plain math (BigInt → display string).
+  const fmt = (lamports: bigint) => {
+    const whole = lamports / ONE_MILLION;
+    const frac = lamports % ONE_MILLION;
+    const fracStr = frac.toString().padStart(6, "0").replace(/0+$/, "");
+    return fracStr ? `${whole}.${fracStr}` : whole.toString();
+  };
+
+  return (
+    <Card variant="outline">
+      <div className="flex items-start gap-3 px-5 py-4 sm:px-6">
+        <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-500/15 text-blue-300 ring-1 ring-blue-500/25">
+          <Receipt className="size-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <CardLabel>Aktivitas platform 24 jam</CardLabel>
+          <div className="mt-1.5 space-y-1 text-sm">
+            {bonusLamports > ZERO && (
+              <p className="text-[var(--color-fg)]">
+                <span className="font-mono font-semibold text-emerald-300">
+                  +{fmt(bonusLamports)} USDC
+                </span>{" "}
+                <span className="text-[var(--color-fg-muted)]">
+                  welcome bonus diterima
+                </span>
+              </p>
+            )}
+            {taxLamports > ZERO && (
+              <p className="text-[var(--color-fg)]">
+                <span className="font-mono font-semibold text-amber-300">
+                  −{fmt(taxLamports)} USDC
+                </span>{" "}
+                <span className="text-[var(--color-fg-muted)]">
+                  pajak deposit ({summary.deposit_tax_count}{" "}
+                  {summary.deposit_tax_count === 1 ? "deposit" : "deposit"})
+                </span>
+              </p>
+            )}
+          </div>
+          <p className="mt-2 text-[11px] text-[var(--color-fg-subtle)]">
+            0.2% platform fee dipotong otomatis tiap deposit USDC masuk.
+          </p>
+        </div>
+      </div>
+    </Card>
   );
 }

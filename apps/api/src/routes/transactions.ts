@@ -12,6 +12,7 @@ import {
   fetchRecentSignatures,
   parseDepositTx,
 } from "../lib/solana-deposits.js";
+import { sweepDepositTax } from "../lib/deposit-tax.js";
 
 export const transactions = new Hono<{ Variables: AuthVariables }>();
 
@@ -80,6 +81,51 @@ const ListQuerySchema = z.object({
   // Cursor pagination — ISO datetime of the last row from previous page.
   before: z.string().datetime().optional(),
   limit: z.coerce.number().int().min(1).max(50).default(20),
+});
+
+/**
+ * GET /transactions/tax-summary
+ * Sum of platform-fee transactions (deposit_tax + welcome_bonus) for the
+ * current user in the last 24h. Used by the dashboard "Pajak terkumpul"
+ * indicator. Welcome bonus is included as a positive (incoming) amount;
+ * deposit tax as outgoing — UI surfaces them separately.
+ */
+transactions.get("/tax-summary", async (c) => {
+  const userId = await getInternalUserId(c.get("privyUserId"));
+  if (!userId) return c.json({ error: "user_not_synced" }, 404);
+
+  const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+  const { data, error } = await supabaseAdmin
+    .from("transactions")
+    .select("type, amount_usdc_lamports")
+    .eq("user_id", userId)
+    .in("type", ["deposit_tax", "welcome_bonus"])
+    .gte("created_at", since);
+
+  if (error) {
+    console.error("[transactions/tax-summary] query failed:", error);
+    return c.json({ error: "lookup_failed" }, 500);
+  }
+
+  let depositTaxLamports = 0n;
+  let welcomeBonusLamports = 0n;
+  let depositTaxCount = 0;
+  for (const row of data ?? []) {
+    const amt = BigInt(row.amount_usdc_lamports as number);
+    if (row.type === "deposit_tax") {
+      depositTaxLamports += amt;
+      depositTaxCount += 1;
+    } else if (row.type === "welcome_bonus") {
+      welcomeBonusLamports += amt;
+    }
+  }
+
+  return c.json({
+    deposit_tax_lamports: depositTaxLamports.toString(),
+    deposit_tax_count: depositTaxCount,
+    welcome_bonus_lamports: welcomeBonusLamports.toString(),
+    window_hours: 24,
+  });
 });
 
 /**
@@ -251,6 +297,22 @@ transactions.post("/scan-deposits", async (c) => {
       console.error("[transactions/scan] insert failed:", insertErr);
       return c.json({ inserted: 0, error: insertErr.code }, 500);
     }
+  }
+
+  // Deposit tax — fire-and-forget per deposit. sweepDepositTax handles all
+  // failure paths internally (logs + returns ok:false). Parallelism is
+  // bounded by the number of new deposits in this scan (typically 1-3).
+  // We do NOT await the response — scan-deposits returns immediately so
+  // the dashboard render isn't held up by the tax txs.
+  for (const d of newOnes) {
+    sweepDepositTax({
+      userId,
+      userSolanaAddress: u.solana_address as string,
+      depositAmountLamports: d.amount_lamports,
+      depositSignature: d.signature,
+    }).catch((err) =>
+      console.error("[transactions/scan] tax sweep crashed:", err),
+    );
   }
 
   return c.json({ inserted: newOnes.length });

@@ -2,9 +2,20 @@ import { PrivyClient } from "@privy-io/server-auth";
 import { env } from "../env.js";
 
 // Server-side Privy client. Used to:
-//   - verifyAuthToken(token)  → AuthTokenClaims (claims.userId is the Privy DID)
-//   - getUserById(userId)     → User { linkedAccounts: [...] }
-export const privy = new PrivyClient(env.PRIVY_APP_ID, env.PRIVY_APP_SECRET);
+//   - verifyAuthToken(token)        → AuthTokenClaims
+//   - getUserById(userId)           → User { linkedAccounts: [...] }
+//   - walletApi.solana.signTransaction(...) → sign on user's behalf via
+//     their session signer (requires PRIVY_AUTHORIZATION_KEY)
+//
+// authorizationPrivateKey enables the wallet signing path. Without it,
+// walletApi calls fail with a clear error. We construct unconditionally
+// (passing undefined when missing) so callers can detect feature
+// availability via env at call time, not via SDK init failure.
+export const privy = new PrivyClient(env.PRIVY_APP_ID, env.PRIVY_APP_SECRET, {
+  walletApi: env.PRIVY_AUTHORIZATION_KEY
+    ? { authorizationPrivateKey: env.PRIVY_AUTHORIZATION_KEY }
+    : undefined,
+});
 
 export interface PrivyIdentity {
   privyUserId: string;

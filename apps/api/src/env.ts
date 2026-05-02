@@ -30,6 +30,16 @@ const EnvSchema = z.object({
   // Treasury
   TREASURY_USDC_ATA: z.string().min(32),
 
+  // Privy authorization key — server-side signing on user's behalf via
+  // session signers. Required for the deposit-tax feature (real-time 0.2%
+  // sweep from user wallet → treasury). If empty, deposit tax is skipped
+  // gracefully (logged, not fatal). Welcome bonus + payment tax do NOT
+  // depend on this — they use the treasury keypair (FEE_PAYER) directly.
+  // Configure in Privy Dashboard → Authorization keys → create one →
+  // copy the private key here.
+  PRIVY_AUTHORIZATION_KEY_ID: z.string().optional(),
+  PRIVY_AUTHORIZATION_KEY: z.string().optional(),
+
   // Oracle
   COINGECKO_API_KEY: z.string().optional(),
 
