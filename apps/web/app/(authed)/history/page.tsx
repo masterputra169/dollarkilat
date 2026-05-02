@@ -20,6 +20,7 @@ import type {
   UserTransaction,
 } from "@dollarkilat/shared";
 import { api, ApiError } from "@/lib/api";
+import { readCache, writeCache } from "@/lib/swr-cache";
 import { formatRupiah, formatUSDC } from "@/lib/format";
 import {
   groupToStatusCsv,
@@ -45,7 +46,10 @@ export default function HistoryPage() {
   const router = useRouter();
 
   const [filter, setFilter] = useState<StatusGroup>("all");
-  const [items, setItems] = useState<UserTransaction[] | null>(null);
+  // Initial state hydrates from in-memory cache so revisits render instantly.
+  const [items, setItems] = useState<UserTransaction[] | null>(() =>
+    readCache<UserTransaction[]>(`history:all`),
+  );
   const [cursor, setCursor] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -99,6 +103,11 @@ export default function HistoryPage() {
           return res.transactions;
         });
         setCursor(res.next_cursor);
+        // Cache only the first page so revisits render instantly. Pagination
+        // results are not cached (would balloon memory and rarely hit on revisit).
+        if (!opts.append && !opts.before) {
+          writeCache(`history:${filter}`, res.transactions);
+        }
       } catch (err) {
         const msg =
           err instanceof ApiError ? `${err.code}` : (err as Error).message;
@@ -111,10 +120,12 @@ export default function HistoryPage() {
     [authenticated, filter, getAccessToken],
   );
 
-  // Reset + refetch on filter change
+  // Reset + refetch on filter change. Render cached data immediately if present
+  // (stale-while-revalidate) so users don't see a skeleton on a revisit.
   useEffect(() => {
     if (!ready || !authenticated) return;
-    setItems(null);
+    const cached = readCache<UserTransaction[]>(`history:${filter}`);
+    setItems(cached); // null on miss = skeleton; populated on hit = instant render
     setCursor(null);
     fetchPage({ append: false });
   }, [filter, ready, authenticated, fetchPage]);

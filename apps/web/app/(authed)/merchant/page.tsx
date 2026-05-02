@@ -26,6 +26,7 @@ import {
   type MerchantTransaction,
 } from "@dollarkilat/shared";
 import { api, ApiError } from "@/lib/api";
+import { readCache, writeCache } from "@/lib/swr-cache";
 import { formatRupiah } from "@/lib/format";
 import { Logo } from "@/components/brand/logo";
 import { Card, CardLabel } from "@/components/ui/card";
@@ -36,8 +37,12 @@ const POLL_MS = 15_000;
 export default function MerchantPage() {
   const { ready, authenticated, getAccessToken } = usePrivy();
   const router = useRouter();
-  const [data, setData] = useState<MerchantDashboardResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  // Hydrate from in-memory cache so revisits render instantly while a
+  // background fetch refreshes the data.
+  const [data, setData] = useState<MerchantDashboardResponse | null>(() =>
+    readCache<MerchantDashboardResponse>("merchant:dashboard"),
+  );
+  const [loading, setLoading] = useState(() => readCache("merchant:dashboard") === null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -53,6 +58,7 @@ export default function MerchantPage() {
         { token },
       );
       setData(res);
+      writeCache("merchant:dashboard", res);
       setError(null);
     } catch (err) {
       const reason =
