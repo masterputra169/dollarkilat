@@ -1,12 +1,17 @@
 "use client";
 
-import { usePrivy, useSessionSigners } from "@privy-io/react-auth";
+import {
+  useExportWallet,
+  usePrivy,
+  useSessionSigners,
+} from "@privy-io/react-auth";
 import { useWallets as useSolanaWallets } from "@privy-io/react-auth/solana";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
+  AlertTriangle,
   ArrowLeft,
   ArrowRight,
   Check,
@@ -15,6 +20,7 @@ import {
   ExternalLink,
   Fingerprint,
   Info,
+  Key,
   LogOut,
   Settings as SettingsIcon,
   Shield,
@@ -34,6 +40,7 @@ import { InstallButton } from "@/components/install-button";
 export default function SettingsPage() {
   const { ready, authenticated, user, logout, getAccessToken } = usePrivy();
   const { removeSessionSigners } = useSessionSigners();
+  const { exportWallet } = useExportWallet();
   const { wallets: solanaWallets } = useSolanaWallets();
   const router = useRouter();
 
@@ -41,6 +48,8 @@ export default function SettingsPage() {
   const [loadingConsent, setLoadingConsent] = useState(true);
   const [revoking, setRevoking] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState(false);
+  const [confirmExport, setConfirmExport] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [copiedAddr, setCopiedAddr] = useState(false);
 
   useEffect(() => {
@@ -130,6 +139,22 @@ export default function SettingsPage() {
     setCopiedAddr(true);
     toast.success("Alamat disalin");
     setTimeout(() => setCopiedAddr(false), 2000);
+  }
+
+  async function doExport() {
+    if (!solanaAddress) return;
+    setExporting(true);
+    try {
+      // Privy opens a sandboxed iframe modal — private key shown there,
+      // never reaches our app code. We only fire the trigger.
+      await exportWallet({ address: solanaAddress });
+      setConfirmExport(false);
+    } catch (err) {
+      const msg = (err as Error).message ?? "unknown";
+      toast.error(`Export gagal: ${msg}`);
+    } finally {
+      setExporting(false);
+    }
   }
 
   return (
@@ -290,6 +315,33 @@ export default function SettingsPage() {
           )}
         </section>
 
+        {/* Keamanan & Wallet */}
+        <section>
+          <SectionLabel icon={<Key className="size-3.5" />}>
+            Keamanan & wallet
+          </SectionLabel>
+          <Card className="mt-2">
+            <button
+              type="button"
+              onClick={() => setConfirmExport(true)}
+              disabled={!solanaAddress}
+              className="group flex w-full items-center justify-between gap-3 px-4 py-4 text-left transition-colors hover:bg-[var(--color-bg-subtle)] disabled:opacity-50 disabled:hover:bg-transparent sm:px-5"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-[var(--color-fg)]">
+                  Ekspor private key
+                </p>
+                <p className="mt-0.5 text-[12px] text-[var(--color-fg-muted)]">
+                  Untuk pindah wallet ke Phantom / Solflare. Privy tampilkan
+                  di iframe terisolasi — app dollarkilat tidak pernah lihat
+                  key kamu.
+                </p>
+              </div>
+              <ChevronRight className="size-4 shrink-0 text-[var(--color-fg-faint)] transition-transform group-hover:translate-x-0.5" />
+            </button>
+          </Card>
+        </section>
+
         {/* Aplikasi */}
         <section>
           <SectionLabel icon={<Info className="size-3.5" />}>Aplikasi</SectionLabel>
@@ -335,6 +387,72 @@ export default function SettingsPage() {
           Keluar dari akun
         </Button>
       </div>
+
+      {/* Confirm export modal */}
+      {confirmExport && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-black/60 backdrop-blur-sm sm:items-center"
+          onClick={() => !exporting && setConfirmExport(false)}
+        >
+          <div
+            className="w-full max-w-md rounded-t-3xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-6 shadow-2xl sm:rounded-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-3">
+              <span className="inline-flex size-10 items-center justify-center rounded-full bg-amber-50 text-amber-600 dark:bg-amber-950/40 dark:text-amber-300">
+                <AlertTriangle className="size-5" />
+              </span>
+              <h2 className="text-base font-semibold text-[var(--color-fg)]">
+                Mau ekspor private key?
+              </h2>
+            </div>
+            <ul className="mt-4 space-y-2 text-[13px] text-[var(--color-fg-muted)]">
+              <li className="flex gap-2">
+                <span className="mt-1.5 size-1 shrink-0 rounded-full bg-[var(--color-fg-faint)]" />
+                <span>
+                  Siapa pun yang punya key ini bisa <strong>menguras saldo
+                  USDC kamu</strong>. Jangan pernah share / screenshot ke
+                  tempat tidak aman.
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <span className="mt-1.5 size-1 shrink-0 rounded-full bg-[var(--color-fg-faint)]" />
+                <span>
+                  Privy tampilkan key di iframe terisolasi — dollarkilat
+                  tidak pernah lihat atau simpan.
+                </span>
+              </li>
+              <li className="flex gap-2">
+                <span className="mt-1.5 size-1 shrink-0 rounded-full bg-[var(--color-fg-faint)]" />
+                <span>
+                  Setelah ekspor, kamu bisa import key ini ke Phantom /
+                  Solflare untuk akses penuh wallet di luar dollarkilat.
+                </span>
+              </li>
+            </ul>
+            <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
+              <Button
+                variant="secondary"
+                size="md"
+                onClick={() => setConfirmExport(false)}
+                disabled={exporting}
+              >
+                Batal
+              </Button>
+              <Button
+                variant="primary"
+                size="md"
+                onClick={doExport}
+                disabled={exporting}
+                loading={exporting}
+                leftIcon={!exporting ? <Key className="size-3.5" /> : undefined}
+              >
+                {exporting ? "Membuka…" : "Ya, lanjut ekspor"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Confirm revoke modal */}
       {confirmRevoke && (
