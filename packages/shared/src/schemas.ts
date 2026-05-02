@@ -60,11 +60,16 @@ export const QuoteResponseSchema = z.object({
 export type QuoteResponse = z.infer<typeof QuoteResponseSchema>;
 
 // ── QRIS pay ───────────────────────────────────────────────────
+// Biometric mode was removed: every payment is a One-Tap delegated sign via
+// the user's session signer. Frontend still produces signed_tx (Privy SDK
+// routes the signing through the session signer transparently — the user
+// sees no prompt). `mode` kept as a single-member literal for explicit
+// contract + forward compat if alternate modes return.
 export const PayRequestSchema = z.object({
   quote_id: z.string().uuid(),
   qris_string: z.string().min(20).max(500),
-  mode: z.enum(["delegated", "biometric"]),
-  signed_tx: z.string().optional(), // base64; required when mode=biometric
+  mode: z.literal("delegated"),
+  signed_tx: z.string(), // base64-encoded, signed by Privy session signer
 });
 export type PayRequest = z.infer<typeof PayRequestSchema>;
 

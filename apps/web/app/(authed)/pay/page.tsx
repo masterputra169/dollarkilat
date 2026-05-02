@@ -14,7 +14,6 @@ import {
   ArrowRight,
   CheckCircle2,
   ExternalLink,
-  Fingerprint,
   RefreshCw,
   Store,
   Zap,
@@ -40,26 +39,23 @@ import { formatRupiah, formatUSDC } from "@/lib/format";
 // scan        ← user scans/uploads/types QRIS
 // quoting     ← server building quote (USDC ↔ IDR conversion)
 // preview     ← user sees merchant + amount + USDC + fee + mode badge
-// confirming  ← awaiting biometric (Mode Aman) or skipped (One-Tap)
 // processing  ← /qris/pay in flight
 // success     ← signature returned
 // failed      ← any step blew up; retry path back to scan
+//
+// Biometric / "Mode Aman" was removed — every payment is One-Tap delegated
+// signing via the user's session signer. The "confirming" intermediate step
+// (which existed to gate biometric users with an explicit "Are you sure?"
+// modal before triggering Privy's biometric prompt) is gone too.
 
 type Step =
   | { kind: "scan" }
   | { kind: "amount"; decoded: QRISDecoded } // static QR — user types amount
   | { kind: "quoting"; decoded: QRISDecoded }
   | { kind: "preview"; decoded: QRISDecoded; quote: QuoteResponse }
-  | {
-      kind: "confirming"; // biometric mode — explicit user-confirmation step
-      decoded: QRISDecoded;
-      quote: QuoteResponse;
-    }
   | { kind: "processing"; quote: QuoteResponse }
   | { kind: "success"; signature: string; quote: QuoteResponse; isMock: boolean }
   | { kind: "failed"; reason: string };
-
-type Mode = "one_tap" | "biometric";
 
 function base64ToBytes(b64: string): Uint8Array {
   const binary = atob(b64);
@@ -88,7 +84,7 @@ export default function PayPage() {
   }, [ready, authenticated, router]);
 
   // Parallel pre-fetch on /pay mount:
-  //   • consent — drives Preview's mode badge + ConfirmCard routing
+  //   • consent — gates the Bayar button (must be active One-Tap consent)
   //   • USDC balance — surface insufficient-balance early in Preview
   //   • USDC↔IDR rate — pre-warm 60s server cache so first /qris/quote
   //     skips the CoinGecko round-trip (~300-700ms)
@@ -179,10 +175,9 @@ export default function PayPage() {
     [requestQuote],
   );
 
-  // Actual signing + submit. Pulled out so both paths (one_tap direct,
-  // biometric via confirm modal) can share it.
+  // Actual signing + submit. Always One-Tap delegated mode now.
   const runPay = useCallback(
-    async (mode: Mode, decoded: QRISDecoded, quote: QuoteResponse) => {
+    async (decoded: QRISDecoded, quote: QuoteResponse) => {
       setStep({ kind: "processing", quote });
       try {
         const wallet = solanaWallets[0];
@@ -191,10 +186,10 @@ export default function PayPage() {
         // 1. Decode the unsigned tx the backend built for us.
         const unsignedBytes = base64ToBytes(quote.unsigned_tx_base64);
 
-        // 2. Ask Privy to sign it. On mobile this can trigger biometric;
-        //    on desktop/delegated mode it signs via the embedded wallet
-        //    without an OS prompt — our explicit confirm modal upstream
-        //    is what guarantees user intent.
+        // 2. Sign via Privy. With One-Tap (active session signer) this is
+        //    silent — no OS prompt, no popup. The session signer in the
+        //    Privy TEE signs on the user's behalf using the authorization
+        //    key our backend holds.
         mark("pay:sign_start");
         const signed = await signTransaction({
           transaction: unsignedBytes,
@@ -214,7 +209,7 @@ export default function PayPage() {
           body: JSON.stringify({
             quote_id: quote.quote_id,
             qris_string: decoded.raw,
-            mode: mode === "one_tap" ? "delegated" : "biometric",
+            mode: "delegated",
             signed_tx: signedBase64,
           }),
         });
@@ -227,7 +222,7 @@ export default function PayPage() {
         });
         // Log latency breakdown to console for benchmark capture
         // (see docs/BENCHMARK.md for recording protocol).
-        summarizePay(`pay ${mode}`);
+        summarizePay("pay one_tap");
       } catch (err) {
         const reason =
           err instanceof ApiError
@@ -239,22 +234,11 @@ export default function PayPage() {
     [getAccessToken, signTransaction, solanaWallets],
   );
 
-  // Preview "Bayar" button. one_tap → skip confirm (that's the whole
-  // point). biometric → route through explicit confirm step so there's
-  // always a visible "are you sure?" gate, even on desktop where Privy
-  // may not surface a native biometric prompt.
-  const handleConfirm = useCallback(
-    async (mode: Mode) => {
-      if (step.kind !== "preview") return;
-      const { quote, decoded } = step;
-      if (mode === "biometric") {
-        setStep({ kind: "confirming", decoded, quote });
-        return;
-      }
-      await runPay(mode, decoded, quote);
-    },
-    [step, runPay],
-  );
+  // Preview "Bayar" button — direct sign + submit, no intermediate confirm.
+  const handleConfirm = useCallback(async () => {
+    if (step.kind !== "preview") return;
+    await runPay(step.decoded, step.quote);
+  }, [step, runPay]);
 
   if (!ready || !authenticated) {
     return (
@@ -308,20 +292,6 @@ export default function PayPage() {
               onReset={reset}
             />
           )}
-          {step.kind === "confirming" && (
-            <ConfirmCard
-              decoded={step.decoded}
-              quote={step.quote}
-              onConfirm={() => runPay("biometric", step.decoded, step.quote)}
-              onCancel={() =>
-                setStep({
-                  kind: "preview",
-                  decoded: step.decoded,
-                  quote: step.quote,
-                })
-              }
-            />
-          )}
           {step.kind === "processing" && <ProcessingCard quote={step.quote} />}
           {step.kind === "success" && (
             <SuccessCard
@@ -363,11 +333,6 @@ function Heading({ step }: { step: Step }) {
       eyebrow: "Konfirmasi pembayaran",
       title: "Cek detail",
       sub: "Periksa detail di bawah, lalu konfirmasi.",
-    },
-    confirming: {
-      eyebrow: "Konfirmasi pembayaran",
-      title: "Konfirmasi terakhir",
-      sub: "Cek nominal sekali lagi sebelum bayar.",
     },
     processing: {
       eyebrow: "Memproses",
@@ -557,10 +522,12 @@ function PreviewCard({
   quote: QuoteResponse;
   consent: ConsentResponse | null;
   balance: BalanceResponse | null;
-  onConfirm: (mode: Mode) => void;
+  onConfirm: () => void;
   onReset: () => void;
 }) {
-  // Mode resolution: One-Tap = active consent + amount within max_per_tx
+  // One-Tap eligibility: active consent + amount within max_per_tx.
+  // If false, the Bayar button is disabled (biometric fallback removed —
+  // user must enable / re-enable One-Tap via /settings or onboarding).
   const oneTapEligible = useMemo(() => {
     if (!consent?.consent || !consent.consent.enabled) return false;
     if (consent.consent.revoked_at) return false;
@@ -569,7 +536,13 @@ function PreviewCard({
     return quote.amount_idr <= cap;
   }, [consent, quote.amount_idr]);
 
-  const mode: Mode = oneTapEligible ? "one_tap" : "biometric";
+  const consentRevoked =
+    consent?.consent != null && !!consent.consent.revoked_at;
+  const overLimit =
+    consent?.consent != null &&
+    consent.consent.enabled &&
+    !consent.consent.revoked_at &&
+    !oneTapEligible;
 
   // Pre-flight balance check — pulled in parallel on /pay mount, may be
   // stale by a few seconds but catches obvious "0 USDC" before signing.
@@ -619,7 +592,7 @@ function PreviewCard({
               </p>
             )}
           </div>
-          <ModeBadge mode={mode} />
+          <OneTapBadge />
         </div>
 
         {/* amounts */}
@@ -677,6 +650,41 @@ function PreviewCard({
           </p>
         </div>
       )}
+      {!consent?.consent && (
+        <div className="border-t border-amber-500/20 bg-amber-500/[0.06] px-5 py-3 sm:px-6">
+          <p className="text-[12px] leading-relaxed text-amber-200">
+            <strong className="font-semibold">One-Tap belum aktif.</strong>{" "}
+            Aktifkan dulu di{" "}
+            <Link
+              href="/onboarding/consent"
+              className="underline-offset-2 hover:underline"
+            >
+              halaman onboarding
+            </Link>
+            .
+          </p>
+        </div>
+      )}
+      {consentRevoked && (
+        <div className="border-t border-amber-500/20 bg-amber-500/[0.06] px-5 py-3 sm:px-6">
+          <p className="text-[12px] leading-relaxed text-amber-200">
+            <strong className="font-semibold">One-Tap di-revoke.</strong>{" "}
+            Aktifkan ulang di{" "}
+            <Link href="/settings" className="underline-offset-2 hover:underline">
+              Setelan
+            </Link>
+            .
+          </p>
+        </div>
+      )}
+      {overLimit && (
+        <div className="border-t border-amber-500/20 bg-amber-500/[0.06] px-5 py-3 sm:px-6">
+          <p className="text-[12px] leading-relaxed text-amber-200">
+            <strong className="font-semibold">Melebihi limit per-transaksi.</strong>{" "}
+            Naikin limit One-Tap di Setelan, atau bayar dalam jumlah lebih kecil.
+          </p>
+        </div>
+      )}
       <div className="border-t border-white/[0.05] bg-white/[0.02] p-4 sm:p-5">
         <div className="flex items-center gap-2">
           <button
@@ -689,11 +697,11 @@ function PreviewCard({
           </button>
           <button
             type="button"
-            disabled={expired || insufficient}
-            onClick={() => onConfirm(mode)}
+            disabled={expired || insufficient || !oneTapEligible}
+            onClick={onConfirm}
             className="btn-gradient-brand inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {mode === "one_tap" ? "Bayar Sekarang" : "Konfirmasi & Bayar"}
+            Bayar Sekarang
             <ArrowRight className="size-4" />
           </button>
         </div>
@@ -717,110 +725,11 @@ function Row({
   );
 }
 
-function ModeBadge({ mode }: { mode: Mode }) {
-  if (mode === "one_tap") {
-    return (
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-blue-300 ring-1 ring-blue-500/25">
-        <Zap className="size-3" /> One-Tap
-      </span>
-    );
-  }
+function OneTapBadge() {
   return (
-    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-violet-300 ring-1 ring-violet-500/25">
-      <Fingerprint className="size-3" /> Biometric
+    <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-blue-300 ring-1 ring-blue-500/25">
+      <Zap className="size-3" /> One-Tap
     </span>
-  );
-}
-
-// Explicit user-confirmation gate before signing in biometric mode.
-// Privy's signTransaction has inconsistent UX across devices (silent on
-// desktop without platform authenticator, biometric prompt on mobile);
-// this card guarantees there's always a visible "are you sure?" step.
-function ConfirmCard({
-  decoded,
-  quote,
-  onConfirm,
-  onCancel,
-}: {
-  decoded: QRISDecoded;
-  quote: QuoteResponse;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  const [submitting, setSubmitting] = useState(false);
-
-  function handleClick() {
-    if (submitting) return;
-    setSubmitting(true);
-    onConfirm();
-  }
-
-  return (
-    <Card variant="elevated">
-      <div className="space-y-4 p-5 sm:p-6">
-        <div className="flex items-start gap-3">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-violet-500/15 text-violet-300 ring-1 ring-violet-500/25">
-            <Fingerprint className="size-5" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <CardLabel>Konfirmasi pembayaran</CardLabel>
-            <p className="mt-1 text-base font-semibold text-[var(--color-fg)]">
-              Bayar {formatRupiah(quote.amount_idr)}?
-            </p>
-            <p className="mt-0.5 text-xs text-[var(--color-fg-muted)]">
-              ke {quote.merchant_name ?? decoded.merchant_name ?? "merchant"}
-            </p>
-          </div>
-        </div>
-
-        <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-sm">
-          <Row label="Total dibayar">
-            <span className="font-mono font-semibold tabular-nums text-[var(--color-fg)]">
-              {formatRupiah(quote.amount_idr)}
-            </span>
-          </Row>
-          <Row label="USDC dipotong">
-            <span className="font-mono tabular-nums text-[var(--color-fg)]">
-              {formatUSDC(quote.amount_usdc)} USDC
-            </span>
-          </Row>
-          {decoded.merchant_id && (
-            <Row label="NMID">
-              <span className="font-mono text-[var(--color-fg-muted)]">
-                {decoded.merchant_id}
-              </span>
-            </Row>
-          )}
-        </div>
-
-        <p className="text-[11px] leading-relaxed text-[var(--color-fg-subtle)]">
-          Mode Aman aktif — setiap pembayaran minta konfirmasi kamu sebelum
-          USDC dipotong. Klik <strong>Bayar Sekarang</strong> untuk lanjut.
-        </p>
-      </div>
-
-      <div className="border-t border-white/[0.05] bg-white/[0.02] p-4 sm:p-5">
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={submitting}
-            className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-4 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-white/[0.07] hover:text-[var(--color-fg)] disabled:opacity-50"
-          >
-            Batal
-          </button>
-          <button
-            type="button"
-            onClick={handleClick}
-            disabled={submitting}
-            className="btn-gradient-brand inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-          >
-            <Fingerprint className="size-4" />
-            {submitting ? "Memproses…" : "Bayar Sekarang"}
-          </button>
-        </div>
-      </div>
-    </Card>
   );
 }
 

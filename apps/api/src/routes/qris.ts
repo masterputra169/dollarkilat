@@ -331,18 +331,9 @@ qris.post("/pay", zValidator("json", PayRequestSchema), async (c) => {
     return c.json({ error: "quote_expired" }, 410);
   }
 
-  // signed_tx is required for biometric mode (and for now also for delegated
-  // mode — Day 7.5 wires server-side TEE signing via Privy walletApi).
-  if (!input.signed_tx) {
-    return c.json(
-      {
-        error: "signed_tx_required",
-        message:
-          "Frontend must sign the unsigned_tx_base64 (via Privy useSignTransaction) and POST signed_tx.",
-      },
-      400,
-    );
-  }
+  // signed_tx is mandatory now — biometric mode (which used to make it
+  // optional in some paths) is gone. Frontend always produces it via Privy
+  // session signer (One-Tap flow, no user prompt).
 
   // Validate the signed tx matches the quote (strict whitelist)
   try {

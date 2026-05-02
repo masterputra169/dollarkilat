@@ -5,14 +5,7 @@ import { useWallets as useSolanaWallets } from "@privy-io/react-auth/solana";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import {
-  ArrowRight,
-  Check,
-  ChevronRight,
-  Fingerprint,
-  ShieldCheck,
-  Zap,
-} from "lucide-react";
+import { ArrowRight, Check, ShieldCheck, Zap } from "lucide-react";
 import {
   type ConsentResponse,
   DELEGATED_DEFAULT_MAX_PER_DAY_IDR,
@@ -22,7 +15,9 @@ import { api, ApiError } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
 import { Logo } from "@/components/brand/logo";
 
-type Mode = "one_tap" | "mode_aman";
+// Biometric / "Mode Aman" was removed — every user goes through One-Tap
+// (single delegated session signer). Kept the Mode alias for future expansion.
+type Mode = "one_tap";
 
 // Privy migrated from on-device delegation → TEE-based session signers.
 // Configure in Privy Dashboard → Authorization keys → create one → paste the
@@ -81,7 +76,7 @@ export default function ConsentPage() {
     }
     if (!SIGNER_ID) {
       toast.error(
-        "One-Tap belum dikonfigurasi (NEXT_PUBLIC_PRIVY_SIGNER_ID). Pakai Mode Aman dulu.",
+        "One-Tap belum dikonfigurasi. Hubungi admin (NEXT_PUBLIC_PRIVY_SIGNER_ID belum di-set).",
       );
       return;
     }
@@ -129,13 +124,6 @@ export default function ConsentPage() {
     }
   }
 
-  function chooseModeAman() {
-    setSubmitting("mode_aman");
-    // No delegation, no DB row needed — biometric mode is the absence of consent.
-    toast.success("Mode Aman aktif. Setiap pembayaran minta biometrik.");
-    setTimeout(() => router.replace("/receive"), 250);
-  }
-
   if (!ready || !authenticated) {
     return (
       <main className="flex flex-1 items-center justify-center">
@@ -155,13 +143,13 @@ export default function ConsentPage() {
 
       <div className="mx-auto w-full max-w-2xl px-5 py-4 sm:px-8 sm:py-6">
         <h1 className="text-balance text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-[var(--color-fg)] sm:text-4xl">
-          Atur cara konfirmasi
+          Aktifkan
           <br />
-          <span className="text-gradient-brand">pembayaran kamu</span>.
+          <span className="text-gradient-brand">One-Tap pembayaran</span>.
         </h1>
         <p className="mt-3 max-w-md text-sm text-[var(--color-fg-muted)] sm:text-[15px]">
-          Pilih sekali aja. Bisa diubah kapan saja di Setelan. Pembayaran besar
-          tetap selalu butuh biometrik.
+          Bayar QRIS langsung jalan, tanpa popup tiap transaksi. Bisa
+          di-revoke kapan saja di Setelan.
         </p>
 
         <div className="mt-7 space-y-3 sm:mt-9 sm:space-y-4">
@@ -169,7 +157,7 @@ export default function ConsentPage() {
             tone="brand"
             icon={<Zap className="size-5" />}
             badge="Direkomendasikan"
-            title="One-Tap (cepat)"
+            title="One-Tap"
             description="Pembayaran ≤ Rp 500.000 jalan tanpa popup. Privy aman simpan signing key di hardware enclave."
             bullets={[
               `Otomatis untuk transaksi ≤ ${formatRupiah(DELEGATED_DEFAULT_MAX_PER_TX_IDR)}`,
@@ -181,23 +169,6 @@ export default function ConsentPage() {
             loading={submitting === "one_tap"}
             disabled={submitting !== null}
             onClick={chooseOneTap}
-          />
-
-          <ChoiceCard
-            tone="muted"
-            icon={<Fingerprint className="size-5" />}
-            title="Mode Aman"
-            description="Setiap pembayaran selalu minta konfirmasi biometrik. Lebih lambat, tapi paranoid-friendly."
-            bullets={[
-              "Konfirmasi biometrik tiap transaksi",
-              "Tidak ada delegasi ke server",
-              "Cocok kalau kamu paranoid",
-            ]}
-            cta="Pakai Mode Aman"
-            ctaIcon={<ChevronRight className="size-4" />}
-            loading={submitting === "mode_aman"}
-            disabled={submitting !== null}
-            onClick={chooseModeAman}
           />
         </div>
 

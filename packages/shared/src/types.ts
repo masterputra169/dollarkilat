@@ -14,7 +14,10 @@ export type TransactionStatus =
 
 export type TransactionType = "deposit" | "qris_payment";
 
-export type PaymentMode = "delegated" | "biometric";
+// Biometric mode removed — all payments go through One-Tap (delegated session signer).
+// Type kept as a single-member union so downstream code that imports PaymentMode
+// keeps working without ripple changes.
+export type PaymentMode = "delegated";
 
 export interface ApiError {
   error: string;
