@@ -30,6 +30,7 @@ import type { ConsentResponse } from "@dollarkilat/shared";
 import { api, ApiError } from "@/lib/api";
 import { readCache, writeCache } from "@/lib/swr-cache";
 import { formatRupiah } from "@/lib/format";
+import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardLabel } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
@@ -168,22 +169,28 @@ export default function SettingsPage() {
   return (
     <main className="flex flex-1 flex-col">
       <header className="sticky top-0 z-10 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg)]/80 pt-safe backdrop-blur-sm sm:backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-2xl items-center gap-2 px-5 py-3 sm:px-8 sm:py-3.5">
+        <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-5 py-3 sm:px-8 sm:py-3.5">
+          <Logo />
           <Link
             href="/dashboard"
-            className="-ml-2 inline-flex size-9 items-center justify-center rounded-full text-[var(--color-fg-muted)] hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"
-            aria-label="Kembali ke dashboard"
+            className="-mr-2 inline-flex h-9 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"
           >
             <ArrowLeft className="size-4" />
+            <span>Kembali</span>
           </Link>
-          <h1 className="flex items-center gap-2 text-base font-semibold text-[var(--color-fg)]">
-            <SettingsIcon className="size-4 text-[var(--color-fg-subtle)]" />
-            Setelan
-          </h1>
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-2xl space-y-5 px-5 py-5 sm:space-y-6 sm:px-8 sm:py-6">
+      <div className="mx-auto w-full max-w-2xl space-y-5 px-5 py-5 sm:space-y-6 sm:px-8 sm:py-8">
+        {/* Page title */}
+        <div>
+          <p className="text-sm text-[var(--color-fg-subtle)]">Akun & preferensi</p>
+          <h1 className="mt-0.5 flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--color-fg)]">
+            <SettingsIcon className="size-5 text-[var(--color-fg-subtle)]" />
+            Setelan
+          </h1>
+        </div>
+
         {/* Akun */}
         <section>
           <SectionLabel icon={<UserIcon className="size-3.5" />}>Akun</SectionLabel>

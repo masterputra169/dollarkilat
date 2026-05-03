@@ -29,6 +29,7 @@ import {
   formatTxRelative,
   type StatusGroup,
 } from "@/lib/tx-status";
+import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
@@ -141,33 +142,41 @@ export default function HistoryPage() {
   return (
     <main className="flex flex-1 flex-col">
       <header className="sticky top-0 z-10 border-b border-[var(--color-border-subtle)] bg-[var(--color-bg)]/80 pt-safe backdrop-blur-sm sm:backdrop-blur-md">
-        <div className="mx-auto flex w-full max-w-2xl items-center gap-2 px-5 py-3 sm:px-8 sm:py-3.5">
+        <div className="mx-auto flex w-full max-w-2xl items-center justify-between px-5 py-3 sm:px-8 sm:py-3.5">
+          <Logo />
           <Link
             href="/dashboard"
-            className="-ml-2 inline-flex size-9 items-center justify-center rounded-full text-[var(--color-fg-muted)] hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"
-            aria-label="Kembali ke dashboard"
+            className="-mr-2 inline-flex h-9 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"
           >
             <ArrowLeft className="size-4" />
+            <span>Kembali</span>
           </Link>
-          <h1 className="flex items-center gap-2 text-base font-semibold text-[var(--color-fg)]">
-            <Receipt className="size-4 text-[var(--color-fg-subtle)]" />
-            Riwayat
-          </h1>
+        </div>
+      </header>
+
+      <div className="mx-auto w-full max-w-2xl space-y-4 px-5 py-5 sm:space-y-5 sm:px-8 sm:py-8">
+        {/* Page title + refresh */}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-sm text-[var(--color-fg-subtle)]">Aktivitas</p>
+            <h1 className="mt-0.5 flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--color-fg)]">
+              <Receipt className="size-5 text-[var(--color-fg-subtle)]" />
+              Riwayat
+            </h1>
+          </div>
           <button
             type="button"
             onClick={() => fetchPage({ append: false })}
             disabled={loading}
             aria-label="Refresh"
-            className="ml-auto inline-flex size-9 items-center justify-center rounded-full text-[var(--color-fg-muted)] hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)] disabled:opacity-50"
+            className="-mr-2 -mt-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)] disabled:opacity-50"
           >
             <RefreshCcw
               className={`size-3.5 ${loading ? "animate-spin" : ""}`}
             />
           </button>
         </div>
-      </header>
 
-      <div className="mx-auto w-full max-w-2xl space-y-4 px-5 py-5 sm:space-y-5 sm:px-8 sm:py-6">
         {/* Filter chips */}
         <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
           {FILTERS.map((f) => {
