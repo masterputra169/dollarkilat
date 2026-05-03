@@ -46,7 +46,15 @@ export default function ConsentPage() {
     if (ready && !authenticated) router.replace("/login");
   }, [ready, authenticated, router]);
 
-  // Skip onboarding if already consented & still active.
+  // Sync user with backend (POST /users/sync) before any consent operation.
+  // New users land here straight from /login without ever visiting /dashboard
+  // (which is the other place that calls /users/sync), so the consent
+  // endpoints would 404 with `user_not_synced`. Sync here is idempotent —
+  // returns the existing row for repeat visits — and fires welcome bonus
+  // server-side if the user is brand new.
+  //
+  // After sync, check existing consent: if One-Tap is already active,
+  // skip to dashboard; otherwise stay and let user pick.
   useEffect(() => {
     if (!ready || !authenticated) return;
     let cancelled = false;
@@ -54,6 +62,20 @@ export default function ConsentPage() {
       try {
         const token = await getAccessToken();
         if (!token) return;
+
+        // 1. Idempotent user sync — must precede any /consent call.
+        await api("/users/sync", {
+          method: "POST",
+          token,
+          body: JSON.stringify({}),
+        }).catch((err) => {
+          // Sync failure is non-fatal here — surface to console but let
+          // the consent flow proceed (user can retry from dashboard).
+          console.warn("[consent] users/sync failed:", err);
+        });
+        if (cancelled) return;
+
+        // 2. Skip onboarding if user already consented + still active.
         const res = await api<ConsentResponse>("/consent/delegated", { token });
         if (cancelled) return;
         if (res.consent && res.consent.enabled && !res.consent.revoked_at) {
