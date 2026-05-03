@@ -14,6 +14,7 @@ import { merchants } from "./routes/merchants.js";
 import { rate } from "./routes/rate.js";
 import { transactions } from "./routes/transactions.js";
 import { users } from "./routes/users.js";
+import { debug } from "./routes/debug.js";
 import { primeRateCache } from "./lib/oracle.js";
 
 const app = new Hono();
@@ -41,6 +42,7 @@ app.route("/balance", balance);
 app.route("/merchants", merchants);
 app.route("/rate", rate);
 app.route("/transactions", transactions);
+app.route("/debug", debug);
 
 app.onError((err, c) => {
   console.error("[unhandled]", err);
