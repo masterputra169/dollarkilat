@@ -33,9 +33,9 @@
 - **Framework:** Next.js 16.2 (App Router, Turbopack default) + TypeScript
 - **UI:** React 19.2 + Tailwind v4.2 + shadcn/ui (latest, sudah Tailwind v4 + R19 compatible) + lucide-react
 - **PWA:** `@serwist/next` (service worker), Next.js native `manifest.ts`
-- **Wallet:** Privy (embedded wallet + Delegated Actions)
+- **Wallet:** Privy (embedded wallet + TEE session signers — pinned `@privy-io/react-auth: 3.23.1`, `@privy-io/server-auth: latest`)
 - **Chain:** Solana (devnet untuk demo, mainnet untuk prod)
-- **Solana SDK:** `@solana/kit` (formerly `@solana/web3.js@2`) + `@solana-program/token`
+- **Solana SDK:** `@solana/kit` (formerly `@solana/web3.js@2`) + `@solana-program/token` for build path. **Plus `@solana/web3.js` (legacy)** specifically for the Privy server-side signing path in `apps/api/src/lib/deposit-tax.ts` — Privy's `walletApi.solana.signTransaction` types its argument as a web3.js `VersionedTransaction`, so we hand off via deserialize→sign→reserialize.
 - **QR scan:** Native `BarcodeDetector` API + `qr-scanner` (nimiq) fallback. **JANGAN pakai `html5-qrcode`** (unmaintained 3 tahun)
 - **Backend:** Supabase (Postgres + Auth + Realtime)
 - **Hosting:** Vercel
@@ -87,15 +87,24 @@ dollarkilat/
 │   │   │   └── globals.css
 │   │   ├── components/
 │   │   │   ├── ui/           # shadcn components
-│   │   │   ├── qr/           # QRScanner, QRDisplay
+│   │   │   ├── qr/           # QRScanner (lazy-loads qr-scanner lib)
 │   │   │   ├── dashboard/
+│   │   │   ├── decor/        # AmbientStage (IO-gated CSS animations)
+│   │   │   ├── session/      # IdleLogout (15-min auto-logout)
+│   │   │   ├── brand/        # Logo (liftapp WebP)
 │   │   │   └── install-prompt.tsx
 │   │   ├── lib/
 │   │   │   ├── api.ts        # fetch wrapper to NEXT_PUBLIC_API_URL
-│   │   │   ├── privy.ts      # client SDK config
 │   │   │   ├── supabase.ts   # client w/ anon key (RLS)
 │   │   │   ├── qris-parser.ts # EMVCo TLV (client-side decode)
-│   │   │   └── format.ts     # Rupiah / USDC formatters
+│   │   │   ├── format.ts     # Rupiah / USDC formatters (BigNumber)
+│   │   │   ├── tx-status.ts  # status grouping/labeling for /history filters
+│   │   │   ├── perf.ts       # performance.mark instrumentation
+│   │   │   ├── swr-cache.ts  # in-memory SWR cache (Day 10 perf)
+│   │   │   └── use-install-pwa.ts # beforeinstallprompt hook
+│   │   ├── app/
+│   │   │   ├── error.tsx       global-error.tsx  not-found.tsx  # error boundaries
+│   │   │   ├── icon.png  apple-icon.png             # Next file-convention favicons
 │   │   ├── public/icons/     # PWA icons
 │   │   ├── next.config.ts    # Serwist + reactStrictMode
 │   │   └── tsconfig.json
@@ -111,7 +120,21 @@ dollarkilat/
 │       │       ├── consent.ts       # delegated actions consent
 │       │       ├── webhooks.ts      # POST /webhooks/pjp
 │       │       └── balance.ts       # GET /balance/:address
-│       ├── lib/              # backend helpers (TBD: fee-payer, solana, validate-tx, rate-limit, oracle, pjp/, supabase)
+│       ├── lib/              # backend helpers
+│       │   ├── fee-payer.ts        # treasury keypair (signs welcome bonus)
+│       │   ├── solana.ts           # balance lookup
+│       │   ├── solana-deposits.ts  # Helius polling + parser
+│       │   ├── build-tx.ts         # USDC payment tx builder
+│       │   ├── validate-tx.ts      # whitelist instructions before co-sign
+│       │   ├── submit-tx.ts        # send + confirm via fee-payer
+│       │   ├── welcome-bonus.ts    # 5 USDC to first 10 new users (Day 10)
+│       │   ├── deposit-tax.ts      # 0.2% real-time skim via Privy SDK (Day 10)
+│       │   ├── privy.ts            # server SDK + authorizationPrivateKey
+│       │   ├── supabase.ts         # service-role client
+│       │   ├── oracle.ts           # USDC↔IDR via CoinGecko + cache
+│       │   ├── qris-parser.ts      # EMVCo TLV decoder
+│       │   ├── rate-limit.ts       # in-memory per-user/IP
+│       │   └── pjp/                # PJP partner adapter (mock + flip)
 │       ├── scripts/
 │       │   ├── generate-fee-payer.ts
 │       │   └── setup-treasury.ts
@@ -185,9 +208,11 @@ Jangan suggest library baru tanpa alasan kuat. Stack sudah locked untuk consiste
 🚩 "Mainnet for demo" → No. Devnet. Lihat `09-vibe-coding-rules.md`.
 🚩 "Skip BigNumber, use float for now" → No. Hard rule.
 🚩 "Native iOS/Android instead of PWA" → No. Stack locked. PWA cukup.
-🚩 "Real PJP integration this week" → No. Sandbox/mock untuk hackathon. Real post-hackathon.
+🚩 "Real PJP integration this week" → No. Sandbox (Flip) untuk hackathon. Real post-hackathon.
 🚩 "Skip rate limiting, demo aman" → No. Security paranoid pada signing endpoints.
 🚩 "Pakai any aja, type bisa nanti" → No. Type safety dari awal.
+🚩 "Bring back biometric mode for paranoid users" → No (Day 10). Biometric was removed: source of perceived "Privy popup slow" + extra friction. One-Tap is the only mode now. Inactive consent = Bayar disabled with banner pointing back to /onboarding/consent.
+🚩 "Just commit and push, deploys will figure it out" → No. Railway uses `npm ci` which fails on package.json/lock drift. Always `npm install` locally before committing any package.json change.
 
 ---
 
@@ -223,42 +248,58 @@ Jangan suggest library baru tanpa alasan kuat. Stack sudah locked untuk consiste
 
 > Update this section as you build.
 
-- **Day:** Day 8 in-progress (2026-05-02) — history + settings done; demo prep next
-- **Phase:** Polish — surface gaps + demo rehearsal
-- **Last completed (Day 5):** QRIS parser (EMVCo TLV) + camera scanner + Mock PJP + `/pay` page state machine (commit c83b110)
-- **Last completed (Day 6):** `/qris/quote` endpoint + static QR support + state machine refinements (commit d4827ff)
-- **Last completed (Day 7):** Real Solana fee-payer signing + tx record + Flip Bisnis sandbox integration + merchant view (commit 41eb9de)
-- **Last completed (Day 8 — partial):**
-  - Cleanup DOKU PJP scaffold (commit 358c7f9) — sandbox confirmed wrong product type
-  - Docs: seed `_lessons.md` (resolved trade-offs) + `_open-problems.md` (15 unresolved) + EMVCo TLV reference in `_v2-ideas.md`
-  - `/history` list + filter chips + cursor pagination (commit c183933)
-  - `/history/[id]` detail with timeline + Solana Explorer link (commit c183933)
-  - On-chain deposit detection via Helius polling (commit eda9d2b) — non-blocking scan + DB-filter-first + parallel parse (perf 7331626)
-  - Sentinel values for deposit rows so migration 0006 stays optional (commit 936bb47)
-  - Block-time as canonical `created_at` for chronological ordering (commit 41e7212)
-  - `/settings` page — One-Tap status + revoke flow (Privy `removeSessionSigners` + DB row) + account/app/support sections + confirm modal
-  - Polished `/offline` page with design system tokens + retry button + connectivity tips
-  - Export private key fix: switch `useExportWallet` import to `@privy-io/react-auth/solana` (was failing with EVM address validation)
-  - Export modal UX: dismiss confirm modal before triggering Privy iframe (prevents stuck overlay)
-  - Merchant edit-in-place: replace `DELETE /merchants/:id` with `PATCH` + new edit modal pre-filled (transactions FK preserved)
-  - Auto page-reload after revoke One-Tap (clears Privy SDK cached session signer)
-  - Pay flow: explicit `ConfirmCard` step before signing in biometric mode (cross-device parity — Privy doesn't always surface biometric prompt on desktop)
-  - Day 8 deliverables drafted: `docs/day8-smoke-test.md` + `docs/pitch-deck-v1.md`
-- **Day 9 (re-scoped, polish + perf):**
-  - iOS PWA polish — added `pt-safe` utility class to globals.css + applied to all sticky headers (dashboard, history list/detail, merchant, pay, settings, receive)
-  - Pre-warm USDC↔IDR oracle cache on /pay mount (skips ~300-700ms CoinGecko round-trip on first quote)
-  - Parallel pre-fetch on /pay mount via `Promise.allSettled`: consent + balance + rate
-  - Pre-flight insufficient-balance guard di PreviewCard (early UX, backend tetap revalidate)
-  - `apps/web/lib/perf.ts` — performance.mark wrapper + `summarizePay()` console.table
-  - Latency markers wired di /pay lifecycle: scan_decoded → quote_start/received → sign_start/done → submit_start/done
-  - `BENCHMARK.md` scaffold dengan protocol 10-tx run + bottleneck checklist
-  - `docs/day9-lighthouse-audit.md` runbook (PWA score ≥ 90 target)
-  - Format Rupiah/USDC audit: sudah konsisten (semua pakai formatRupiah/formatUSDC helper)
-  - Mobile responsive audit: cuma 1 fixed-width found (`max-w-[180px]` di dashboard email truncate, acceptable)
-  - Sponsored counter animation: skipped — counter dihapus dari product narrative (cleanup Apr 29)
-- **Currently working on:** Day 9 manual execution — smoke test (`docs/day8-smoke-test.md`), Lighthouse audit (`docs/day9-lighthouse-audit.md`), 10-tx benchmark run (`BENCHMARK.md`), pitch deck build, Loom recording
-- **Blockers:** None
-- **Next:** User executes manual checklists → Day 10 (buffer / nice-to-have / bug fixes)
+- **Day:** Day 10 done (2026-05-03). Day 11–13 = demo video + pitch deck + submission.
+- **Phase:** Feature-complete. Stop optimizing. Ship.
+- **Production:** Live at `https://dollarkilat.xyz` (Vercel) + `https://dollarkilat-production.up.railway.app` (Railway, Singapore region).
+
+### Day 10 deliverables (2026-05-02 → 2026-05-03)
+
+**Brand swap to liftapp logo (commits f04a4e7, 6af2008)**
+- Single Logo component → WebP @512w (24KB, was 820KB raw SVG, 97% reduction). Migrated favicon to Next.js `app/icon.png` + `app/apple-icon.png` convention. PWA install icons regenerated with proper safe-zone padding.
+
+**Performance push (commits 77220ac, 7f328b7, edc02d0, eecd4e1)**
+- Client-side SWR cache (`apps/web/lib/swr-cache.ts`) for `/history`, `/merchant`, `/settings` — instant render on revisit. Module-level Map survives unmount, 5-min TTL.
+- Dashboard prefetch on idle: warms next-likely page caches via `requestIdleCallback`.
+- Service worker NetworkFirst for navigation + chunks (fixes mobile dead-end stale-chunk bug after deploy).
+- `app/not-found.tsx`, `app/error.tsx`, `app/global-error.tsx` — graceful fallbacks with ChunkLoadError detection + hard reload offer.
+- `optimizePackageImports` for lucide-react + @solana/kit (Privy excluded — splitting it slowed first signing).
+- Permanent `will-change` removed from finite hero animations. Ambient blobs hidden on mobile (`@media (max-width:640px)`).
+- Sticky-header `backdrop-blur-md` → `backdrop-blur-sm sm:backdrop-blur-md` across all 7 authed pages.
+- `/offline` converted to RSC + tiny client island for the reload button.
+- Pinned Privy + lucide-react versions (was `latest`).
+
+**Domain consolidation**
+- Apex `dollarkilat.xyz` set as Vercel primary; `www.*` redirects 308. WEB_ORIGIN single entry.
+
+**Biometric mode removed (commits 151c5e2, 54b495f)**
+- Architectural decision: every user goes through One-Tap delegated signing. No more dual-mode payment flow, no more ConfirmCard intermediate step, no more biometric Privy popups at payment time.
+- `PaymentMode` type narrowed to `"delegated"` only. `signed_tx` made mandatory in `PayRequestSchema`.
+- `/onboarding/consent` simplified to single CTA. `/pay` shows amber banner when consent missing/revoked/over-limit (Bayar disabled, link back to onboarding/settings).
+- Settings page copy updated — "Pembayaran One-Tap" (was "Cara konfirmasi pembayaran"), revoke-confirm alert clarifies "tidak bisa bayar QRIS sampai diaktifkan ulang".
+
+**Tax + welcome bonus (commits 225d495, 23e3d08)**
+- Migration `0007_welcome_bonus_and_tax.sql`: `users.welcome_bonus_sent_at`, transactions.type extended with `welcome_bonus` + `deposit_tax`, partial indexes.
+- Welcome bonus 5 USDC for first 10 new users — fired async from `/users/sync` when `is_new=true`. Three guards: idempotency, global cap, treasury floor (≥50 USDC).
+- Deposit tax 0.2% real-time — sweep on every detected USDC deposit. Pipeline: kit builds + partial-signs (fee-payer) → web3.js VersionedTransaction → Privy `walletApi.solana.signTransaction` (server SDK 1.32.5 with `authorizationPrivateKey`) → submit + confirm via web3.js Connection. Dust threshold 100 lamports.
+- Payment tax 0.5% — already in code as `APP_FEE_BPS=50`, no change needed.
+- Dashboard `TaxSummaryCard` — rolling 24h aggregate of deposit tax + welcome bonus. Hidden when both buckets are zero.
+
+**Webhook (no nginx/ngrok needed on Railway)**
+- Production webhook URL: `https://dollarkilat-production.up.railway.app/webhooks/pjp`. Set in Flip Bisnis dashboard. Local dev still uses ngrok; production uses Railway's public URL directly.
+
+### Operational requirements before deposit tax fires
+
+1. Migration 0007 applied in Supabase SQL Editor.
+2. Privy authorization key created in Dashboard → both `PRIVY_AUTHORIZATION_KEY_ID` + `PRIVY_AUTHORIZATION_KEY` set in Railway Variables AND `apps/api/.env.local`.
+3. `NEXT_PUBLIC_PRIVY_SIGNER_ID` set in Vercel Variables (matching the key ID).
+4. Existing One-Tap users must revoke + re-add via Settings (signer ID changed).
+5. Treasury USDC ATA funded ≥50 USDC (devnet faucet).
+
+### Blockers
+None.
+
+### Next (Day 11–13)
+Demo video script + record + edit, pitch deck build, live demo rehearsal × 5, Loom backup upload, hackathon submission.
 
 ---
 
