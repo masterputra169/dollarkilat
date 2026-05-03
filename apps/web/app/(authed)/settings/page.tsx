@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  AtSign,
   Check,
   ChevronRight,
   Copy,
@@ -26,7 +27,7 @@ import {
   User as UserIcon,
   Zap,
 } from "lucide-react";
-import type { ConsentResponse } from "@dollarkilat/shared";
+import type { ConsentResponse, User } from "@dollarkilat/shared";
 import { api, ApiError } from "@/lib/api";
 import { readCache, writeCache } from "@/lib/swr-cache";
 import { formatRupiah } from "@/lib/format";
@@ -57,6 +58,7 @@ export default function SettingsPage() {
   const [confirmExport, setConfirmExport] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [copiedAddr, setCopiedAddr] = useState(false);
+  const [me, setMe] = useState<User | null>(() => readCache<User>("settings:me"));
 
   useEffect(() => {
     if (ready && !authenticated) router.replace("/login");
@@ -81,6 +83,25 @@ export default function SettingsPage() {
   useEffect(() => {
     if (ready && authenticated) fetchConsent();
   }, [ready, authenticated, fetchConsent]);
+
+  // Load current user row for handle status. Cached so revisits render
+  // the existing handle instantly.
+  const fetchMe = useCallback(async () => {
+    if (!authenticated) return;
+    try {
+      const token = await getAccessToken();
+      if (!token) return;
+      const res = await api<{ user: User }>("/users/me", { token });
+      setMe(res.user);
+      writeCache("settings:me", res.user);
+    } catch (err) {
+      console.warn("[settings] /users/me fetch failed:", err);
+    }
+  }, [authenticated, getAccessToken]);
+
+  useEffect(() => {
+    if (ready && authenticated) fetchMe();
+  }, [ready, authenticated, fetchMe]);
 
   async function doRevoke() {
     const active = consent?.consent;
@@ -232,6 +253,14 @@ export default function SettingsPage() {
               </Button>
             </div>
           </Card>
+        </section>
+
+        {/* @handle */}
+        <section>
+          <SectionLabel icon={<AtSign className="size-3.5" />}>
+            Username
+          </SectionLabel>
+          <HandleCard me={me} onUpdated={(u) => { setMe(u); writeCache("settings:me", u); }} />
         </section>
 
         {/* Pembayaran */}
@@ -569,5 +598,196 @@ function ExtLinkRow({ label, href }: { label: string; href: string }) {
       <span className="text-sm text-[var(--color-fg)]">{label}</span>
       <ExternalLink className="size-3.5 text-[var(--color-fg-muted)] transition-transform group-hover:translate-x-0.5" />
     </a>
+  );
+}
+
+// ── @handle (username) section ─────────────────────────────────
+// Lets the user claim a globally-unique @handle. Once claimed, the
+// handle resolves to the wallet via the public GET /users/by-handle/:handle
+// endpoint — clients can paste "@sarah" instead of an address.
+
+function HandleCard({
+  me,
+  onUpdated,
+}: {
+  me: User | null;
+  onUpdated: (u: User) => void;
+}) {
+  const { getAccessToken } = usePrivy();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const current = me?.handle ?? null;
+
+  function startEdit() {
+    setDraft(current ?? "");
+    setEditing(true);
+  }
+
+  function cancel() {
+    setEditing(false);
+    setDraft("");
+  }
+
+  const valid = /^[a-z0-9_]{3,20}$/.test(draft);
+
+  async function save() {
+    if (!valid || submitting) return;
+    setSubmitting(true);
+    try {
+      const token = await getAccessToken();
+      if (!token) throw new Error("no access token");
+      const res = await api<{ user: User }>("/users/handle", {
+        method: "PATCH",
+        token,
+        body: JSON.stringify({ handle: draft }),
+      });
+      toast.success(`Username @${res.user.handle} aktif`);
+      onUpdated(res.user);
+      setEditing(false);
+    } catch (err) {
+      const msg =
+        err instanceof ApiError
+          ? err.code === "handle_taken"
+            ? `@${draft} sudah dipakai user lain`
+            : err.message ?? err.code
+          : (err as Error).message ?? "unknown";
+      toast.error(`Gagal: ${msg}`);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function copyHandle() {
+    if (!current) return;
+    await navigator.clipboard.writeText(`@${current}`);
+    setCopied(true);
+    toast.success("Username disalin");
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  if (!me) {
+    return (
+      <Card className="mt-2 p-5">
+        <Skeleton className="h-4 w-1/3" />
+        <Skeleton className="mt-3 h-3 w-2/3" />
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="mt-2">
+      <div className="px-5 pt-5 pb-4 sm:px-6">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex size-8 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-soft-fg)]">
+                <AtSign className="size-4" />
+              </span>
+              {current ? (
+                <p className="font-mono text-base font-semibold text-[var(--color-fg)]">
+                  @{current}
+                </p>
+              ) : (
+                <p className="text-sm font-medium text-[var(--color-fg-muted)]">
+                  Belum di-claim
+                </p>
+              )}
+              {current && <Pill tone="success">Aktif</Pill>}
+            </div>
+            <p className="mt-2 text-[13px] text-[var(--color-fg-muted)]">
+              Bagikan{" "}
+              {current ? (
+                <span className="font-mono text-[var(--color-fg)]">
+                  @{current}
+                </span>
+              ) : (
+                "username"
+              )}{" "}
+              ke klien — mereka kirim USDC ke @username, gak perlu salin
+              alamat panjang.
+            </p>
+          </div>
+          {current && !editing && (
+            <button
+              type="button"
+              onClick={copyHandle}
+              aria-label="Salin username"
+              className="-mr-2 -mt-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"
+            >
+              {copied ? (
+                <Check className="size-4 text-[var(--color-success)]" />
+              ) : (
+                <Copy className="size-3.5" />
+              )}
+            </button>
+          )}
+        </div>
+
+        {editing && (
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center gap-1.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] px-3.5 py-2.5 focus-within:border-[var(--color-brand)]">
+              <span className="font-mono text-sm text-[var(--color-fg-muted)]">
+                @
+              </span>
+              <input
+                type="text"
+                value={draft}
+                onChange={(e) =>
+                  setDraft(
+                    e.target.value
+                      .toLowerCase()
+                      .replace(/[^a-z0-9_]/g, "")
+                      .slice(0, 20),
+                  )
+                }
+                placeholder="sarah"
+                autoFocus
+                disabled={submitting}
+                className="flex-1 bg-transparent font-mono text-sm text-[var(--color-fg)] outline-none placeholder:text-[var(--color-fg-faint)]"
+              />
+            </div>
+            <p className="text-[11px] text-[var(--color-fg-subtle)]">
+              3-20 karakter, huruf kecil + angka + underscore. Tidak bisa
+              diubah orang lain.
+            </p>
+          </div>
+        )}
+      </div>
+      <div className="border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)] px-5 py-3 sm:px-6">
+        {editing ? (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={cancel}
+              disabled={submitting}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={save}
+              disabled={!valid || submitting}
+              loading={submitting}
+            >
+              {current ? "Simpan" : "Claim"}
+            </Button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={startEdit}
+            className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
+          >
+            <ChevronRight className="size-3.5" />
+            {current ? "Ubah username" : "Claim username"}
+          </button>
+        )}
+      </div>
+    </Card>
   );
 }

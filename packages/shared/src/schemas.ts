@@ -16,6 +16,10 @@ export const UserSchema = z.object({
   privy_id: z.string().min(1),
   email: z.string().email().nullable(),
   solana_address: z.string().min(32).nullable(),
+  /** Optional @handle for receiving payments without sharing the wallet
+   * address. Lowercase a-z + 0-9 + underscore, 3-20 chars. NULL until claimed.
+   * Globally unique. */
+  handle: z.string().nullable().optional(),
   created_at: z.string().datetime(),
   updated_at: z.string().datetime(),
 });
@@ -26,6 +30,28 @@ export const UserSyncResponseSchema = z.object({
   is_new: z.boolean(),
 });
 export type UserSyncResponse = z.infer<typeof UserSyncResponseSchema>;
+
+// ── Handle (username) ─────────────────────────────────────────
+// PATCH /users/handle — claim or update. NULL/empty = release the handle.
+export const HandleClaimRequestSchema = z.object({
+  handle: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(
+      /^[a-z0-9_]{3,20}$/,
+      "Handle harus 3-20 karakter, hanya huruf kecil, angka, atau underscore",
+    )
+    .nullable(),
+});
+export type HandleClaimRequest = z.infer<typeof HandleClaimRequestSchema>;
+
+export const HandleResolveResponseSchema = z.object({
+  handle: z.string(),
+  solana_address: z.string().nullable(),
+  email: z.string().nullable(),
+});
+export type HandleResolveResponse = z.infer<typeof HandleResolveResponseSchema>;
 
 // ── QRIS quote ─────────────────────────────────────────────────
 // `amount_idr` optional — required when QRIS is static (no embedded amount).
