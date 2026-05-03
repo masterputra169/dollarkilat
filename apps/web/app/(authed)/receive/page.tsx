@@ -7,51 +7,23 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import QRCode from "qrcode";
-import { ArrowLeft, AtSign, Check, Copy, Share2 } from "lucide-react";
-import type { User } from "@dollarkilat/shared";
-import { api } from "@/lib/api";
-import { readCache, writeCache } from "@/lib/swr-cache";
+import { ArrowLeft, Check, Copy, Share2 } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardLabel } from "@/components/ui/card";
-import { Pill } from "@/components/ui/pill";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ReceivePage() {
-  const { ready, authenticated, getAccessToken } = usePrivy();
+  const { ready, authenticated } = usePrivy();
   const { wallets: solanaWallets } = useSolanaWallets();
   const router = useRouter();
 
   const [qrSvg, setQrSvg] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
-  const [copiedHandle, setCopiedHandle] = useState(false);
-  const [me, setMe] = useState<User | null>(() => readCache<User>("settings:me"));
 
   useEffect(() => {
     if (ready && !authenticated) router.replace("/login");
   }, [ready, authenticated, router]);
-
-  // Fetch current user (for @handle display). Same cache key as Settings
-  // page so navigating between them is instant.
-  useEffect(() => {
-    if (!ready || !authenticated) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const token = await getAccessToken();
-        if (!token) return;
-        const res = await api<{ user: User }>("/users/me", { token });
-        if (cancelled) return;
-        setMe(res.user);
-        writeCache("settings:me", res.user);
-      } catch {
-        // non-fatal
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [ready, authenticated, getAccessToken]);
 
   const address = solanaWallets[0]?.address ?? null;
 
@@ -87,14 +59,6 @@ export default function ReceivePage() {
     setCopied(true);
     toast.success("Alamat disalin");
     setTimeout(() => setCopied(false), 2000);
-  }
-
-  async function copyHandle() {
-    if (!me?.handle) return;
-    await navigator.clipboard.writeText(`@${me.handle}`);
-    setCopiedHandle(true);
-    toast.success("Username disalin");
-    setTimeout(() => setCopiedHandle(false), 2000);
   }
 
   async function shareAddress() {
@@ -148,68 +112,6 @@ export default function ReceivePage() {
             update di Dashboard.
           </p>
         </div>
-
-        {/* @handle quick-share card */}
-        {me?.handle ? (
-          <Card variant="elevated">
-            <div className="flex items-center justify-between gap-3 px-5 py-4 sm:px-6">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex size-8 items-center justify-center rounded-full bg-[var(--color-brand-soft)] text-[var(--color-brand-soft-fg)]">
-                    <AtSign className="size-4" />
-                  </span>
-                  <p className="font-mono text-base font-semibold text-[var(--color-fg)]">
-                    @{me.handle}
-                  </p>
-                  <Pill tone="brand">Cara cepat</Pill>
-                </div>
-                <p className="mt-2 text-[12.5px] leading-relaxed text-[var(--color-fg-muted)]">
-                  Bagikan username ke klien — mereka kirim USDC ke{" "}
-                  <span className="font-mono text-[var(--color-fg)]">
-                    @{me.handle}
-                  </span>{" "}
-                  tanpa perlu salin alamat panjang.
-                </p>
-              </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                onClick={copyHandle}
-                aria-label="Salin username"
-                leftIcon={
-                  copiedHandle ? (
-                    <Check className="size-3.5 text-[var(--color-success)]" />
-                  ) : (
-                    <Copy className="size-3.5" />
-                  )
-                }
-              >
-                <span className="hidden sm:inline">
-                  {copiedHandle ? "Tersalin" : "Salin"}
-                </span>
-              </Button>
-            </div>
-          </Card>
-        ) : me ? (
-          <Card variant="outline">
-            <div className="flex items-center justify-between gap-3 px-5 py-3.5 sm:px-6">
-              <div className="flex items-center gap-2.5">
-                <span className="inline-flex size-8 items-center justify-center rounded-full bg-[var(--color-bg-subtle)] text-[var(--color-fg-subtle)]">
-                  <AtSign className="size-4" />
-                </span>
-                <p className="text-[13px] text-[var(--color-fg-muted)]">
-                  Claim username untuk share lebih cepat
-                </p>
-              </div>
-              <a
-                href="/settings"
-                className="inline-flex h-8 items-center rounded-full px-3 text-xs font-medium text-[var(--color-brand)] hover:text-[var(--color-fg)]"
-              >
-                Claim →
-              </a>
-            </div>
-          </Card>
-        ) : null}
 
         {/* QR card */}
         <Card variant="elevated" className="bg-card-mesh relative overflow-hidden">
