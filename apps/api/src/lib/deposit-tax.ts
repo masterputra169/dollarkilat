@@ -59,6 +59,7 @@ const DUST_THRESHOLD_LAMPORTS = 100n;
 
 export interface DepositTaxInput {
   userId: string; // internal users.id
+  privyUserId: string; // Privy DID — needed to look up walletId for signing
   userSolanaAddress: string;
   depositAmountLamports: bigint;
   depositSignature: string; // for traceability
@@ -202,6 +203,7 @@ async function buildSignAndSendTaxTx(
 
   // Privy signs as the user via session signer.
   const fullySignedB64 = await signWithPrivySessionSigner({
+    privyUserId: input.privyUserId,
     walletAddress: input.userSolanaAddress,
     transactionBase64: partialWireB64,
   });
@@ -253,7 +255,35 @@ async function buildSignAndSendTaxTx(
  *     below and throw a clearer error so the caller can guide the user
  *     to revoke + re-add One-Tap.
  */
+/** In-memory cache: privyUserId → walletId. Avoids re-fetching Privy user
+ * on every sweep. Cleared on process restart. */
+const walletIdCache = new Map<string, string>();
+
+async function resolveWalletId(privyUserId: string): Promise<string> {
+  const cached = walletIdCache.get(privyUserId);
+  if (cached) return cached;
+
+  const user = await privy.getUserById(privyUserId);
+  const wallet = user.linkedAccounts.find(
+    (a) =>
+      a.type === "wallet" &&
+      "chainType" in a &&
+      (a as { chainType?: string }).chainType === "solana" &&
+      "id" in a &&
+      typeof (a as { id?: unknown }).id === "string",
+  ) as ({ id: string } | undefined);
+
+  if (!wallet?.id) {
+    throw new Error(
+      `wallet_id_not_found: privy.getUserById returned no Solana wallet with id for ${privyUserId}`,
+    );
+  }
+  walletIdCache.set(privyUserId, wallet.id);
+  return wallet.id;
+}
+
 async function signWithPrivySessionSigner(args: {
+  privyUserId: string;
   walletAddress: string;
   transactionBase64: string;
 }): Promise<string> {
@@ -275,14 +305,15 @@ async function signWithPrivySessionSigner(args: {
     );
   }
 
-  // Hand off to Privy for the user signature. We pass `address` +
-  // `chainType` (the SDK still accepts both forms; the deprecation
-  // warning is informational and the call works). Privy looks up the
-  // wallet by (address, chainType) and signs via the registered
-  // session signer.
+  // Resolve walletId for this user. Privy SDK 1.32.5 emits a deprecation
+  // warning for the address-based lookup AND, in our testing, silently
+  // returns the unmodified tx when address is used (verified against a
+  // wallet that's correctly registered with our authorization key). The
+  // walletId path works reliably.
+  const walletId = await resolveWalletId(args.privyUserId);
+
   const result = await privy.walletApi.solana.signTransaction({
-    address: args.walletAddress,
-    chainType: "solana",
+    walletId,
     transaction: tx,
   });
 
@@ -304,7 +335,7 @@ async function signWithPrivySessionSigner(args: {
     userSig.every((b) => b === 0);
   if (isEmpty) {
     throw new Error(
-      `privy_signature_missing: Privy returned a transaction without the user signature for ${args.walletAddress}. ` +
+      `privy_signature_missing: Privy returned a transaction without the user signature for walletId=${walletId} (address=${args.walletAddress}). ` +
         `Most likely cause: the wallet's session signer was registered under a different authorization key. ` +
         `User should revoke + re-add One-Tap in /settings to bind to the current PRIVY_AUTHORIZATION_KEY_ID.`,
     );

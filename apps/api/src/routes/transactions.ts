@@ -304,9 +304,11 @@ transactions.post("/scan-deposits", async (c) => {
   // bounded by the number of new deposits in this scan (typically 1-3).
   // We do NOT await the response — scan-deposits returns immediately so
   // the dashboard render isn't held up by the tax txs.
+  const callerPrivyId = c.get("privyUserId");
   for (const d of newOnes) {
     sweepDepositTax({
       userId,
+      privyUserId: callerPrivyId,
       userSolanaAddress: u.solana_address as string,
       depositAmountLamports: d.amount_lamports,
       depositSignature: d.signature,
