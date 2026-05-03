@@ -233,19 +233,25 @@ async function buildSignAndSendTaxTx(
 /**
  * Sign a Solana transaction on the user's behalf via Privy session signer.
  *
- * Privy SDK 1.32.5+ exposes `walletApi.solana.signTransaction({ address,
- * transaction })`. The `transaction` argument is a @solana/web3.js
- * VersionedTransaction (or legacy Transaction); we deserialize the wire
- * bytes from kit on the way in and re-serialize after Privy returns.
+ * Privy SDK 1.32.5+ exposes `walletApi.solana.signTransaction(...)`. The
+ * `transaction` argument is a @solana/web3.js VersionedTransaction; we
+ * deserialize the wire bytes from kit on the way in and re-serialize
+ * after Privy returns.
  *
  * Auth requirements (set up in PrivyClient init via privy.ts):
  *   - PRIVY_APP_ID + PRIVY_APP_SECRET → basic auth
  *   - PRIVY_AUTHORIZATION_KEY → signs the request itself (Privy verifies
  *     server is authorized to sign on behalf of users with this key in
  *     their session signer config)
- *   - The user must have actively added this key as a session signer (via
- *     /onboarding/consent: addSessionSigners → SIGNER_ID matches our
- *     PRIVY_AUTHORIZATION_KEY_ID)
+ *   - The user must have actively added this key as a session signer
+ *     (via /onboarding/consent: addSessionSigners → SIGNER_ID matches
+ *     our PRIVY_AUTHORIZATION_KEY_ID). If the wallet's session signer
+ *     was added under a DIFFERENT authorization key (e.g. a previous
+ *     key we rotated away from), Privy will silently return a tx
+ *     without filling the user signature slot — Solana RPC then rejects
+ *     with `MissingRequiredSignature`. We detect this case explicitly
+ *     below and throw a clearer error so the caller can guide the user
+ *     to revoke + re-add One-Tap.
  */
 async function signWithPrivySessionSigner(args: {
   walletAddress: string;
@@ -255,22 +261,54 @@ async function signWithPrivySessionSigner(args: {
   const wireBytes = Buffer.from(args.transactionBase64, "base64");
   const tx = VersionedTransaction.deserialize(wireBytes);
 
-  // Hand off to Privy for the user signature. chainType narrows the
-  // wallet lookup to the user's Solana embedded wallet.
+  // Snapshot the signature for the user slot BEFORE asking Privy to
+  // sign. The transferChecked instruction marks `authority` (= user) as
+  // a required signer; the corresponding slot in tx.signatures is
+  // currently a zero-filled 64-byte buffer (Solana's default for
+  // unsigned slots). After Privy signs, that slot should be non-zero.
+  const userAccountIndex = tx.message.staticAccountKeys.findIndex(
+    (k) => k.toBase58() === args.walletAddress,
+  );
+  if (userAccountIndex === -1) {
+    throw new Error(
+      `wallet_not_in_tx: ${args.walletAddress} is not a static account in the transaction`,
+    );
+  }
+
+  // Hand off to Privy for the user signature. We pass `address` +
+  // `chainType` (the SDK still accepts both forms; the deprecation
+  // warning is informational and the call works). Privy looks up the
+  // wallet by (address, chainType) and signs via the registered
+  // session signer.
   const result = await privy.walletApi.solana.signTransaction({
     address: args.walletAddress,
     chainType: "solana",
     transaction: tx,
   });
 
-  // Re-serialize the fully signed tx back to wire bytes.
+  // Re-serialize the fully signed tx.
   const signed = result.signedTransaction;
-  // .serialize() on VersionedTransaction returns Uint8Array.
-  const signedBytes =
-    "serialize" in signed
-      ? (signed as VersionedTransaction).serialize()
-      : (() => {
-          throw new Error("privy returned unsupported transaction type");
-        })();
-  return Buffer.from(signedBytes).toString("base64");
+  if (!("serialize" in signed)) {
+    throw new Error("privy returned unsupported transaction type");
+  }
+  const signedTx = signed as VersionedTransaction;
+
+  // Validate: the user signature slot must now be non-zero (filled).
+  // If it's still zero-filled, Privy returned the input tx without
+  // actually signing — typically because the wallet's active session
+  // signer was added under a different authorization key.
+  const userSig = signedTx.signatures[userAccountIndex];
+  const isEmpty =
+    !userSig ||
+    userSig.length === 0 ||
+    userSig.every((b) => b === 0);
+  if (isEmpty) {
+    throw new Error(
+      `privy_signature_missing: Privy returned a transaction without the user signature for ${args.walletAddress}. ` +
+        `Most likely cause: the wallet's session signer was registered under a different authorization key. ` +
+        `User should revoke + re-add One-Tap in /settings to bind to the current PRIVY_AUTHORIZATION_KEY_ID.`,
+    );
+  }
+
+  return Buffer.from(signedTx.serialize()).toString("base64");
 }
