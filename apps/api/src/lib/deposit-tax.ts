@@ -25,6 +25,7 @@
 import {
   address,
   appendTransactionMessageInstruction,
+  createNoopSigner,
   createTransactionMessage,
   getBase64EncodedWireTransaction,
   partiallySignTransactionMessageWithSigners,
@@ -172,15 +173,22 @@ async function buildSignAndSendTaxTx(
     tokenProgram: TOKEN_PROGRAM_ADDRESS,
   });
 
-  // TransferChecked authority is the user (we don't hold their key — Privy
-  // signs via session signer below). We build the message with both
-  // signature slots required, partially sign with fee-payer here, then
-  // hand off the wire bytes to Privy which fills the user signature.
+  // TransferChecked authority is the user. We don't hold their key —
+  // Privy signs via the session signer below. To make the message
+  // header reserve TWO signature slots (feePayer + user) so Privy has
+  // a slot to fill, we wrap the user address in a NoopSigner. Without
+  // this, the @solana-program/token instruction builder treats `authority`
+  // as a non-signer Address and the resulting message has only ONE
+  // required signature (feePayer). Privy then sees nothing to sign and
+  // returns the tx unchanged — which Solana rejects at simulation with
+  // `MissingRequiredSignature` because the SPL Token program runtime
+  // requires the authority signature regardless of the message header.
+  const userAuthoritySigner = createNoopSigner(userAddr);
   const transferIx = getTransferCheckedInstruction({
     source: userAta,
     mint: usdcMint,
     destination: treasuryAta,
-    authority: userAddr,
+    authority: userAuthoritySigner,
     amount: taxLamports,
     decimals: 6,
   });
@@ -194,12 +202,29 @@ async function buildSignAndSendTaxTx(
     (m) => appendTransactionMessageInstruction(transferIx, m),
   );
 
-  // Partially sign with fee-payer (only local signer). User signature slot
-  // remains empty — Privy fills it.
+  // Partially sign. The fee-payer keypair fills slot 0; the noop user
+  // signer reserves slot 1 with an empty signature for Privy to fill.
   const partiallySigned = await partiallySignTransactionMessageWithSigners(
     message,
   );
   const partialWireB64 = getBase64EncodedWireTransaction(partiallySigned);
+
+  // Diagnostic: verify the message expects 2 signatures (feePayer + user).
+  // If this logs `numRequiredSignatures: 1`, the noop signer didn't take
+  // effect and we need to investigate the @solana-program/token version.
+  const debugTxBytes = Buffer.from(partialWireB64, "base64");
+  const debugTx = VersionedTransaction.deserialize(debugTxBytes);
+  console.log("[deposit-tax] partial-sign tx", {
+    numRequiredSignatures: debugTx.message.header.numRequiredSignatures,
+    signatureSlots: debugTx.signatures.length,
+    signers: debugTx.message.staticAccountKeys
+      .slice(0, debugTx.message.header.numRequiredSignatures)
+      .map((k, i) => ({
+        index: i,
+        address: k.toBase58(),
+        filled: !(debugTx.signatures[i]?.every((b) => b === 0) ?? true),
+      })),
+  });
 
   // Privy signs as the user via session signer.
   const fullySignedB64 = await signWithPrivySessionSigner({
@@ -334,10 +359,26 @@ async function signWithPrivySessionSigner(args: {
     userSig.length === 0 ||
     userSig.every((b) => b === 0);
   if (isEmpty) {
+    // Diagnostic dump — log everything we know about the tx so we can
+    // tell whether Privy returned the input unchanged (no signing
+    // attempted) vs filled wrong slot vs some other failure mode.
+    console.error("[deposit-tax] Privy returned unsigned tx, dumping state:", {
+      walletId,
+      walletAddress: args.walletAddress,
+      userAccountIndex,
+      numRequiredSignatures: tx.message.header.numRequiredSignatures,
+      signatureSlots: signedTx.signatures.length,
+      slot_states: signedTx.signatures.map((s, i) => ({
+        index: i,
+        account: tx.message.staticAccountKeys[i]?.toBase58(),
+        filled: !(s?.every((b) => b === 0) ?? true),
+      })),
+    });
     throw new Error(
-      `privy_signature_missing: Privy returned a transaction without the user signature for walletId=${walletId} (address=${args.walletAddress}). ` +
-        `Most likely cause: the wallet's session signer was registered under a different authorization key. ` +
-        `User should revoke + re-add One-Tap in /settings to bind to the current PRIVY_AUTHORIZATION_KEY_ID.`,
+      `privy_signature_missing: walletId=${walletId} address=${args.walletAddress} userSlot=${userAccountIndex}. ` +
+        `Privy returned tx without filling the user signature slot. See log above for tx structure dump. ` +
+        `If numRequiredSignatures < userSlot+1, the instruction builder didn't mark authority as a signer. ` +
+        `Otherwise Privy SDK is silently no-op'ing — try upgrading @privy-io/server-auth or using REST raw_sign.`,
     );
   }
 
