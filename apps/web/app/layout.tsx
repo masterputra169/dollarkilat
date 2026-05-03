@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { InstallPrompt } from "@/components/install-prompt";
+import { HistoryUrlPolyfill } from "./history-url-polyfill";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -54,6 +55,7 @@ export default function RootLayout({
       className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="bg-aurora min-h-full flex flex-col relative">
+        <HistoryUrlPolyfill />
         {children}
         <InstallPrompt />
       </body>
