@@ -15,6 +15,7 @@
     "treasury:setup": "tsx --env-file=.env.local scripts/setup-treasury.ts",
     "treasury:withdraw": "tsx --env-file=.env.local scripts/treasury-withdraw.ts",
     "qris:gen": "tsx scripts/generate-qris.ts",
+    "seed:demo-merchants": "tsx --env-file=.env.local scripts/seed-demo-merchants.ts",
     "pjp:poll": "tsx --env-file=.env.local scripts/pjp-poll.ts"
   },
   "dependencies": {

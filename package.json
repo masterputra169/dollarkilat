@@ -25,6 +25,7 @@
     "treasury:setup": "npm --workspace @dollarkilat/api run treasury:setup",
     "treasury:withdraw": "npm --workspace @dollarkilat/api run treasury:withdraw --",
     "qris:gen": "npm --workspace @dollarkilat/api run qris:gen --",
+    "seed:demo-merchants": "npm --workspace @dollarkilat/api run seed:demo-merchants",
     "pjp:poll": "npm --workspace @dollarkilat/api run pjp:poll --"
   },
   "devDependencies": {
