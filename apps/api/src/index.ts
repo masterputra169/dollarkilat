@@ -14,6 +14,7 @@ import { merchants } from "./routes/merchants.js";
 import { rate } from "./routes/rate.js";
 import { transactions } from "./routes/transactions.js";
 import { users } from "./routes/users.js";
+import { primeRateCache } from "./lib/oracle.js";
 
 const app = new Hono();
 
@@ -51,4 +52,8 @@ app.notFound((c) => c.json({ error: "not_found" }, 404));
 const port = Number(env.PORT);
 serve({ fetch: app.fetch, port, hostname: "0.0.0.0" }, (info) => {
   console.log(`✓ dollarkilat api listening on http://0.0.0.0:${info.port} (LAN reachable)`);
+  // Pre-warm USDC↔IDR rate cache so the first /rate request after deploy
+  // doesn't race CoinGecko (which sometimes 429s the cold call). Fire-
+  // and-forget; failure here is logged and recoverable on next user req.
+  primeRateCache();
 });
