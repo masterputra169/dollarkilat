@@ -136,12 +136,18 @@ consent.get("/delegated", async (c) => {
 
 /**
  * POST /consent/delegated — record consent.
- * Frontend MUST call Privy `delegateWallet()` first (client-side biometric
- * prompt). Backend then verifies via Privy that the wallet is actually
- * delegated, and only then writes the policy row.
+ * Frontend MUST call Privy `addSessionSigners()` first (client-side
+ * Privy iframe prompt). Backend then verifies via Privy that the
+ * wallet has session signers attached, and only then writes the
+ * policy row.
  *
- * Append-only: each call inserts a new row. Active row = latest non-revoked
- * non-expired (see loadActiveConsent).
+ * Single-active invariant: before inserting a new active consent, this
+ * handler revokes any previously-active consent rows for the same user.
+ * Without that step, repeated "Aktifkan One-Tap" clicks accumulate
+ * multiple active rows in the DB — which breaks the revoke flow
+ * (frontend's DELETE only kills the latest active row by id, leaving
+ * older active rows untouched, so users have to click "Matikan
+ * One-Tap" multiple times to actually revoke everything).
  */
 consent.post(
   "/delegated",
@@ -163,11 +169,28 @@ consent.post(
           {
             error: "wallet_not_delegated",
             message:
-              "Privy reports the embedded wallet has not been delegated. Run delegateWallet() on the client first.",
+              "Privy reports the embedded wallet has not been delegated. Run addSessionSigners() on the client first.",
           },
           409,
         );
       }
+    }
+
+    // Enforce single-active invariant: revoke any previously-active consents
+    // before inserting a new row. Idempotent — no-op if there's nothing
+    // active to revoke. We mark them as revoked at the moment the new
+    // consent is being created, which is semantically accurate.
+    const nowIso = new Date().toISOString();
+    const { error: revokeErr } = await supabaseAdmin
+      .from("delegated_actions_consents")
+      .update({ revoked_at: nowIso })
+      .eq("user_id", userId)
+      .is("revoked_at", null);
+    if (revokeErr) {
+      // Don't fail the request — proceed to insert the new row. Worst case
+      // we end up with multiple active rows again, but that's the
+      // pre-existing behavior, not a regression.
+      console.warn("[consent] auto-revoke previous failed:", revokeErr);
     }
 
     const expiresAt = new Date(
@@ -204,25 +227,48 @@ consent.post(
 );
 
 /**
- * DELETE /consent/delegated/:id — revoke. Sets revoked_at on the active row.
- * (Day 9 expands this to also call Privy revoke API.)
+ * DELETE /consent/delegated/:id — revoke ALL active consents for the user.
+ *
+ * The :id in the URL is preserved for backwards compatibility with the
+ * frontend, but the actual scope is "every active consent for this user."
+ * This intentionally cleans up DB state from before the POST handler
+ * enforced the single-active invariant — without this, users who
+ * accumulated multiple active rows in the past would have to click
+ * "Matikan One-Tap" multiple times to fully revoke.
+ *
+ * Privy-side session signers are also wiped client-side by the frontend
+ * (settings/page.tsx → removeSessionSigners). This handler only manages
+ * our DB record.
  */
 consent.delete("/delegated/:id", async (c) => {
   const privyUserId = c.get("privyUserId");
   const userId = await getInternalUserId(privyUserId);
   if (!userId) return c.json({ error: "user_not_synced" }, 404);
 
-  const id = c.req.param("id");
-  const { error } = await supabaseAdmin
+  // The :id is accepted but not used in the WHERE clause — we revoke
+  // all active rows for this user, not just one by id. Backward-compat
+  // with the existing frontend call site.
+  const _ignoredId = c.req.param("id");
+  void _ignoredId;
+
+  const nowIso = new Date().toISOString();
+  const { data, error } = await supabaseAdmin
     .from("delegated_actions_consents")
-    .update({ revoked_at: new Date().toISOString() })
-    .eq("id", id)
+    .update({ revoked_at: nowIso })
     .eq("user_id", userId)
-    .is("revoked_at", null);
+    .is("revoked_at", null)
+    .select("id");
 
   if (error) {
     console.error("[consent] revoke failed:", error);
     return c.json({ error: "consent_revoke_failed" }, 500);
   }
-  return c.json({ ok: true });
+  const revokedCount = data?.length ?? 0;
+  if (revokedCount > 1) {
+    console.log(
+      `[consent] revoked ${revokedCount} stale active rows for user ${userId} ` +
+        `(legacy multi-active state — single-active invariant now enforced on POST)`,
+    );
+  }
+  return c.json({ ok: true, revoked: revokedCount });
 });
