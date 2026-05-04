@@ -116,6 +116,30 @@ export async function getUSDCToIDRRate(): Promise<RateCache> {
  * Failure here is non-fatal — the next user request will retry via the
  * normal getUSDCToIDRRate path. Just logged.
  */
+/**
+ * Convert USDC lamports → IDR (rounded down) using a rate string in the same
+ * shape returned by getUSDCToIDRRate (e.g. "16500" or "16500.42"). Used for
+ * audit-row amount_idr at insert time on deposit / deposit_tax / welcome_bonus
+ * paths so the UI shows a meaningful Rupiah estimate instead of "Rp 0".
+ *
+ * Math: idr = lamports * rate / 10^6  (USDC has 6 decimals).
+ * Rate is parsed to a 12-decimal-place bigint to preserve fractional cents.
+ * Returns 0 on a malformed rate string — caller logs and writes 0 anyway.
+ */
+export function idrFromUsdcLamports(
+  lamports: bigint,
+  ratePerUsdcStr: string,
+): number {
+  const trimmed = ratePerUsdcStr.trim();
+  if (!/^\d+(\.\d+)?$/.test(trimmed)) return 0;
+  const [whole, frac = ""] = trimmed.split(".") as [string, string?];
+  const fracPadded = (frac ?? "").padEnd(12, "0").slice(0, 12);
+  const rateScaled = BigInt(whole) * 1_000_000_000_000n + BigInt(fracPadded || "0");
+  if (rateScaled <= 0n) return 0;
+  const idr = (lamports * rateScaled) / (1_000_000n * 1_000_000_000_000n);
+  return Number(idr);
+}
+
 export function primeRateCache(): void {
   getUSDCToIDRRate()
     .then((r) => {

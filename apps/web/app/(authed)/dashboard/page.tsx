@@ -4,7 +4,7 @@ import { usePrivy } from "@privy-io/react-auth";
 import { useWallets as useSolanaWallets } from "@privy-io/react-auth/solana";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
   ArrowDownToLine,
@@ -166,6 +166,30 @@ export default function DashboardPage() {
     }
   }, [solanaAddress, getAccessToken]);
 
+  // Background-only deposit scan + recentTx refresh. Used by both the
+  // on-mount fetch and the balance-delta watcher below. Idempotent on the
+  // backend, so multiple parallel calls during the same tick are safe.
+  const scanForDeposits = useCallback(async () => {
+    if (!authenticated) return;
+    try {
+      const token = await getAccessToken();
+      if (!token) return;
+      const r = await api<{ inserted: number }>(
+        "/transactions/scan-deposits",
+        { method: "POST", token },
+      );
+      if (r.inserted > 0) {
+        const fresh = await api<TransactionListResponse>(
+          "/transactions?limit=5",
+          { token },
+        );
+        setRecentTx(fresh.transactions);
+      }
+    } catch (scanErr) {
+      console.warn("[dashboard] deposit scan failed:", scanErr);
+    }
+  }, [authenticated, getAccessToken]);
+
   // Recent transactions — fetched once on mount and on manual refresh.
   // List renders immediately from existing DB rows; deposit scan runs in
   // background and triggers a silent re-fetch if new rows were inserted.
@@ -175,24 +199,7 @@ export default function DashboardPage() {
       const token = await getAccessToken();
       if (!token) return;
 
-      // Background scan — doesn't block list render.
-      (async () => {
-        try {
-          const r = await api<{ inserted: number }>(
-            "/transactions/scan-deposits",
-            { method: "POST", token },
-          );
-          if (r.inserted > 0) {
-            const fresh = await api<TransactionListResponse>(
-              "/transactions?limit=5",
-              { token },
-            );
-            setRecentTx(fresh.transactions);
-          }
-        } catch (scanErr) {
-          console.warn("[dashboard] deposit scan failed:", scanErr);
-        }
-      })();
+      scanForDeposits();
 
       const res = await api<TransactionListResponse>(
         "/transactions?limit=5",
@@ -203,11 +210,33 @@ export default function DashboardPage() {
       console.warn("[dashboard] recent tx fetch failed:", err);
       setRecentTx([]);
     }
-  }, [authenticated, getAccessToken]);
+  }, [authenticated, getAccessToken, scanForDeposits]);
 
   useEffect(() => {
     if (ready && authenticated) fetchRecentTx();
   }, [ready, authenticated, fetchRecentTx]);
+
+  // Balance-delta deposit detection. Polling /balance is fast (one Helius RPC
+  // every 30s); polling scan-deposits unconditionally would be expensive (1 +
+  // N RPCs). Instead: when the polled balance LAMPORTS go up vs the previous
+  // tick, fire a scan immediately so the deposit row appears in /history at
+  // the same time the balance updates. Without this, the user sees their
+  // balance refresh but the deposit row lags until they navigate or refresh.
+  const lastSeenLamportsRef = useRef<bigint | null>(null);
+  useEffect(() => {
+    if (!balance) return;
+    let curLamports: bigint;
+    try {
+      curLamports = BigInt(balance.lamports);
+    } catch {
+      return;
+    }
+    const prev = lastSeenLamportsRef.current;
+    lastSeenLamportsRef.current = curLamports;
+    if (prev !== null && curLamports > prev) {
+      scanForDeposits();
+    }
+  }, [balance, scanForDeposits]);
 
   // Prefetch likely-next pages' data into the SWR cache during browser idle
   // time. By the time the user navigates to /history, /merchant, or

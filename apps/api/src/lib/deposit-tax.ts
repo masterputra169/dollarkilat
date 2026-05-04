@@ -48,6 +48,7 @@ import {
 } from "@solana/web3.js";
 import { env } from "../env.js";
 import { getFeePayer, getRpc } from "./fee-payer.js";
+import { getUSDCToIDRRate, idrFromUsdcLamports } from "./oracle.js";
 import { privy } from "./privy.js";
 import { supabaseAdmin } from "./supabase.js";
 
@@ -111,15 +112,27 @@ export async function sweepDepositTax(
   // 4. Persist audit row. Failure here = on-chain tax already collected
   // but DB out of sync. Log loudly. Treasury still got the USDC.
   const nowIso = new Date().toISOString();
+  // Capture USDC→IDR rate so the audit row shows a real Rupiah estimate
+  // in /history (otherwise Rp 0). Soft-fail: if oracle is down, store 0
+  // and the row still records on-chain truth.
+  let rateStr = "0";
+  try {
+    rateStr = (await getUSDCToIDRRate()).rate;
+  } catch (err) {
+    console.warn(
+      "[deposit-tax] oracle rate fetch failed; audit row idr=0:",
+      (err as Error).message,
+    );
+  }
   const { error: insErr } = await supabaseAdmin.from("transactions").insert({
     user_id: input.userId,
     quote_id: "00000000-0000-0000-0000-000000000000",
     type: "deposit_tax" as const,
     status: "completed" as const,
-    amount_idr: 0,
+    amount_idr: idrFromUsdcLamports(taxLamports, rateStr),
     amount_usdc_lamports: Number(taxLamports),
     app_fee_idr: 0,
-    exchange_rate: "0",
+    exchange_rate: rateStr,
     merchant_name: "Platform Tax (deposit)",
     merchant_id: input.depositSignature.slice(0, 32), // for traceability
     acquirer: null,

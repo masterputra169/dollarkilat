@@ -31,6 +31,7 @@ export class QRISParseError extends Error {
   constructor(
     public readonly code:
       | "empty_input"
+      | "not_qris"
       | "malformed_tlv"
       | "missing_required_tag"
       | "crc_mismatch"
@@ -47,6 +48,12 @@ export function parseQRIS(input: string): QRISDecoded {
     throw new QRISParseError("empty_input", "QRIS string kosong atau terlalu pendek");
   }
   const trimmed = sanitizeQRISString(input);
+  if (!/^0002\d{2}/.test(trimmed)) {
+    throw new QRISParseError(
+      "not_qris",
+      "QR ini bukan kode pembayaran QRIS.",
+    );
+  }
   verifyCRC(trimmed);
   const tags = decodeTLV(trimmed);
 
@@ -195,5 +202,6 @@ function sanitizeQRISString(s: string): string {
     .replace(/[​-‍]/g, "") // zero-width
     .replace(/ /g, " ") // nbsp → space
     .replace(/[\r\n\t]/g, "")
+    .replace(/^[\x00-\x1F\x7F-\x9F]+|[\x00-\x1F\x7F-\x9F]+$/g, "")
     .trim();
 }

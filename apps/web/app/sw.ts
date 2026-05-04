@@ -11,6 +11,28 @@ declare global {
 
 declare const self: ServiceWorkerGlobalScope;
 
+// Fallback plugin for navigation NetworkFirst. When BOTH network and cache
+// miss (e.g. offline + first visit to /pay), Workbox throws an unhandled
+// `no-response` rejection. Serwist's top-level `fallbacks.entries` config
+// doesn't reliably catch errors thrown from user-defined runtimeCaching
+// handlers, so we wire it explicitly here. Returns the precached /offline
+// page; if even that's missing (very rare — fresh install + offline),
+// returns a synthetic Response so the promise never rejects.
+const navigationFallbackPlugin = {
+  handlerDidError: async ({ request }: { request: Request }) => {
+    if (request.destination !== "document") return undefined;
+    const offline = await caches.match("/offline");
+    return (
+      offline ??
+      new Response(
+        "<!doctype html><meta charset=utf-8><title>Offline</title>" +
+          "<p>Tidak ada koneksi. Coba lagi setelah online.</p>",
+        { status: 200, headers: { "Content-Type": "text/html; charset=utf-8" } },
+      )
+    );
+  },
+};
+
 const serwist = new Serwist({
   precacheEntries: self.__SW_MANIFEST,
   skipWaiting: true,
@@ -33,7 +55,7 @@ const serwist = new Serwist({
       handler: new NetworkFirst({
         cacheName: "navigations",
         networkTimeoutSeconds: 3,
-        plugins: [],
+        plugins: [navigationFallbackPlugin],
       }),
     },
     // Next.js build chunks: NetworkFirst too. Same reason — after a deploy,

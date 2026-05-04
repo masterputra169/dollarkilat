@@ -49,6 +49,7 @@ export class QRISParseError extends Error {
   constructor(
     public readonly code:
       | "empty_input"
+      | "not_qris"
       | "malformed_tlv"
       | "missing_required_tag"
       | "crc_mismatch"
@@ -73,7 +74,18 @@ export function parseQRIS(input: string): QRISDecoded {
   }
   const trimmed = sanitizeQRISString(input);
 
-  // CRC check first — fail fast on tampered/corrupted QR.
+  // Format gate — QRIS always begins with Tag 00 ("00") + length "02" +
+  // payload format indicator. Common non-QRIS scans (URL, vCard, plain
+  // text, WiFi config) bail here with a friendly message instead of the
+  // user-hostile "Tag 63 (CRC) tidak ditemukan" further down.
+  if (!/^0002\d{2}/.test(trimmed)) {
+    throw new QRISParseError(
+      "not_qris",
+      "QR ini bukan kode pembayaran QRIS. Coba scan QRIS dari kasir.",
+    );
+  }
+
+  // CRC check — fail fast on tampered/corrupted QR.
   verifyCRC(trimmed);
 
   const tags = decodeTLV(trimmed);
@@ -262,5 +274,10 @@ function sanitizeQRISString(s: string): string {
     .replace(/[​-‍]/g, "") // zero-width
     .replace(/ /g, " ") // nbsp → space
     .replace(/[\r\n\t]/g, "") // strip newlines/tabs (paste artifacts)
+    // Strip leading/trailing C0/C1 control chars (NULL, SOH, etc). Some
+    // camera decoders append a NULL terminator or other control byte to
+    // the decoded payload, which sneaks past .trim() and shifts the CRC
+    // tag off the end → "Tag 63 not at end" error.
+    .replace(/^[\x00-\x1F\x7F-\x9F]+|[\x00-\x1F\x7F-\x9F]+$/g, "")
     .trim();
 }

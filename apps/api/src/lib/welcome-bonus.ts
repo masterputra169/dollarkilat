@@ -37,6 +37,7 @@ import {
 } from "@solana-program/token";
 import { env } from "../env.js";
 import { getFeePayer, getRpc, getRpcSubscriptions } from "./fee-payer.js";
+import { getUSDCToIDRRate, idrFromUsdcLamports } from "./oracle.js";
 import { supabaseAdmin } from "./supabase.js";
 
 const WELCOME_BONUS_USDC_LAMPORTS = 5_000_000n; // 5 USDC * 10^6 (USDC has 6 decimals)
@@ -130,6 +131,17 @@ export async function sendWelcomeBonus(
     );
   }
 
+  // Capture USDC→IDR rate so the bonus row shows a real Rupiah estimate
+  // in /history (otherwise Rp 0). Soft-fail: oracle outage → store 0.
+  let rateStr = "0";
+  try {
+    rateStr = (await getUSDCToIDRRate()).rate;
+  } catch (err) {
+    console.warn(
+      "[welcome-bonus] oracle rate fetch failed; audit row idr=0:",
+      (err as Error).message,
+    );
+  }
   const { error: insErr } = await supabaseAdmin
     .from("transactions")
     .insert({
@@ -138,10 +150,10 @@ export async function sendWelcomeBonus(
       quote_id: "00000000-0000-0000-0000-000000000000",
       type: "welcome_bonus" as const,
       status: "completed" as const,
-      amount_idr: 0,
+      amount_idr: idrFromUsdcLamports(WELCOME_BONUS_USDC_LAMPORTS, rateStr),
       amount_usdc_lamports: Number(WELCOME_BONUS_USDC_LAMPORTS),
       app_fee_idr: 0,
-      exchange_rate: "0",
+      exchange_rate: rateStr,
       merchant_name: "Welcome Bonus (testing)",
       merchant_id: null,
       acquirer: null,

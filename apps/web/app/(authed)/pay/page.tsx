@@ -422,12 +422,13 @@ function AmountCard({
             Jumlah
           </label>
           <div className="mt-2 flex items-baseline gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
-            <span className="font-mono text-base text-[var(--color-fg-muted)]">Rp</span>
+            <span className="shrink-0 font-mono text-base text-[var(--color-fg-muted)]">Rp</span>
             <input
               id="static-amount"
               autoFocus
               inputMode="numeric"
               pattern="[0-9]*"
+              size={1}
               placeholder="50.000"
               value={display}
               onChange={(e) => {
@@ -437,10 +438,14 @@ function AmountCard({
               onKeyDown={(e) => {
                 if (e.key === "Enter" && valid) handleSubmit();
               }}
-              className="flex-1 bg-transparent font-mono text-2xl font-semibold tabular-nums text-[var(--color-fg)] placeholder:text-[var(--color-fg-faint)] focus:outline-none sm:text-3xl"
+              // min-w-0 + w-full + size=1 → input shrinks freely inside the
+              // flex row instead of using the browser default ~20-char width,
+              // which on mobile pushes the row wider than the card and
+              // triggers horizontal overflow inside `overflow-hidden`.
+              className="w-full min-w-0 flex-1 bg-transparent font-mono text-2xl font-semibold tabular-nums text-[var(--color-fg)] placeholder:text-[var(--color-fg-faint)] focus:outline-none sm:text-3xl"
             />
           </div>
-          <div className="mt-1.5 flex items-center justify-between text-[11px]">
+          <div className="mt-1.5 flex flex-col gap-0.5 text-[11px] sm:flex-row sm:items-center sm:justify-between sm:gap-2">
             <span className="text-[var(--color-fg-subtle)]">
               Min Rp 1.000 — Max Rp 1.600.000
             </span>
@@ -451,14 +456,15 @@ function AmountCard({
             )}
           </div>
 
-          {/* quick amounts */}
-          <div className="mt-3 flex flex-wrap gap-1.5">
+          {/* quick amounts — grid keeps chip widths uniform and prevents
+              the awkward 3+1 wrap that flex-wrap produced on narrow phones */}
+          <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-4">
             {[10_000, 25_000, 50_000, 100_000].map((n) => (
               <button
                 key={n}
                 type="button"
                 onClick={() => setRaw(String(n))}
-                className="inline-flex items-center rounded-full border border-white/[0.08] bg-white/[0.02] px-3 py-1 font-mono text-[11px] text-[var(--color-fg-muted)] transition-colors hover:bg-white/[0.06] hover:text-[var(--color-fg)]"
+                className="inline-flex min-w-0 items-center justify-center rounded-full border border-white/[0.08] bg-white/[0.02] px-3 py-1.5 font-mono text-[11px] text-[var(--color-fg-muted)] transition-colors hover:bg-white/[0.06] hover:text-[var(--color-fg)]"
               >
                 Rp {n.toLocaleString("id-ID")}
               </button>

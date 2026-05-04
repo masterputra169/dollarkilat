@@ -13,6 +13,7 @@ import {
   parseDepositTx,
 } from "../lib/solana-deposits.js";
 import { sweepDepositTax } from "../lib/deposit-tax.js";
+import { getUSDCToIDRRate, idrFromUsdcLamports } from "../lib/oracle.js";
 
 export const transactions = new Hono<{ Variables: AuthVariables }>();
 
@@ -255,6 +256,19 @@ transactions.post("/scan-deposits", async (c) => {
   const DEPOSIT_QUOTE_SENTINEL = "00000000-0000-0000-0000-000000000000";
   const DEPOSIT_MERCHANT_SENTINEL = "Deposit Solana";
 
+  // Fetch USDC→IDR rate once for the whole batch so each deposit row gets a
+  // meaningful Rupiah estimate. Soft-fails: on oracle outage we fall back to
+  // exchange_rate="0" and amount_idr=0 (UI then shows "Rp 0", same as before).
+  let rateStr = "0";
+  try {
+    rateStr = (await getUSDCToIDRRate()).rate;
+  } catch (err) {
+    console.warn(
+      "[transactions/scan] oracle rate fetch failed; deposits inserted with idr=0:",
+      (err as Error).message,
+    );
+  }
+
   const rows = newOnes.map((d) => {
     // Use the real on-chain block time as the canonical timestamp so the
     // /history list orders deposits chronologically (e.g., a deposit from
@@ -268,10 +282,10 @@ transactions.post("/scan-deposits", async (c) => {
       quote_id: DEPOSIT_QUOTE_SENTINEL,
       type: "deposit" as const,
       status: "completed" as const,
-      amount_idr: 0,
+      amount_idr: idrFromUsdcLamports(d.amount_lamports, rateStr),
       amount_usdc_lamports: Number(d.amount_lamports),
       app_fee_idr: 0,
-      exchange_rate: "0",
+      exchange_rate: rateStr,
       merchant_name: DEPOSIT_MERCHANT_SENTINEL,
       merchant_id: null,
       acquirer: null,
