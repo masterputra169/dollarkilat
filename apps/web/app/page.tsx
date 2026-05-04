@@ -1,3 +1,5 @@
+"use client";
+
 import Link from "next/link";
 import {
   ArrowRight,
@@ -13,63 +15,61 @@ import { Logo } from "@/components/brand/logo";
 import { CardLabel } from "@/components/ui/card";
 import { AmbientStage } from "@/components/decor/ambient-stage";
 import { InstallButton } from "@/components/install-button";
-
-const steps = [
-  {
-    title: "Signup pakai email",
-    body: "Embedded Solana wallet otomatis dibuat. Tanpa seed phrase, tanpa Phantom install.",
-  },
-  {
-    title: "Terima USDC",
-    body: "Bagikan alamat wallet kamu ke klien. USDC masuk langsung ke wallet Privy kamu.",
-  },
-  {
-    title: "Scan QRIS, tap, selesai",
-    body: "Konversi otomatis USDC → IDR saat bayar. Tanpa popup tiap transaksi.",
-  },
-];
-
-const features = [
-  {
-    icon: <KeyRound className="size-5" />,
-    title: "Embedded wallet",
-    body: "Privy bikin Solana wallet otomatis pakai email. Kunci aman di device, bukan di kita.",
-    tint: "bento-tint-blue",
-    tex: "card-tex-grid",
-    iconBg: "bg-blue-500/15 text-blue-300",
-    accent: true,
-    span: "sm:col-span-2",
-  },
-  {
-    icon: <QrCode className="size-5" />,
-    title: "QRIS instan",
-    body: "Scan, konfirmasi, beres. 40+ juta merchant.",
-    tint: "bento-tint-violet",
-    tex: "card-tex-dots",
-    iconBg: "bg-violet-500/15 text-violet-300",
-    span: "",
-  },
-  {
-    icon: <Globe2 className="size-5" />,
-    title: "Rate live",
-    body: "Konversi USDC → IDR dari pasar real-time.",
-    tint: "bento-tint-emerald",
-    tex: "card-tex-dots",
-    iconBg: "bg-emerald-500/15 text-emerald-300",
-    span: "",
-  },
-  {
-    icon: <Zap className="size-5" />,
-    title: "Konfirmasi sekejap",
-    body: "Solana settle finalitas dalam ~400ms. Notifikasi langsung di app.",
-    tint: "bento-tint-amber",
-    tex: "card-tex-grid",
-    iconBg: "bg-amber-500/15 text-amber-300",
-    span: "sm:col-span-2",
-  },
-];
+import { LanguageToggle } from "@/components/language-toggle";
+import { useT } from "@/lib/i18n";
 
 export default function Home() {
+  const { t } = useT();
+
+  const steps = [
+    { title: t("land.step.1.title"), body: t("land.step.1.body") },
+    { title: t("land.step.2.title"), body: t("land.step.2.body") },
+    { title: t("land.step.3.title"), body: t("land.step.3.body") },
+  ];
+
+  const features = [
+    {
+      icon: <KeyRound className="size-5" />,
+      title: t("land.feature.wallet.title"),
+      body: t("land.feature.wallet.body"),
+      tint: "bento-tint-blue",
+      tex: "card-tex-grid",
+      iconBg: "bg-blue-500/15 text-blue-300",
+      accent: true,
+      span: "sm:col-span-2",
+    },
+    {
+      icon: <QrCode className="size-5" />,
+      title: t("land.feature.qris.title"),
+      body: t("land.feature.qris.body"),
+      tint: "bento-tint-violet",
+      tex: "card-tex-dots",
+      iconBg: "bg-violet-500/15 text-violet-300",
+      span: "",
+      accent: false,
+    },
+    {
+      icon: <Globe2 className="size-5" />,
+      title: t("land.feature.rate.title"),
+      body: t("land.feature.rate.body"),
+      tint: "bento-tint-emerald",
+      tex: "card-tex-dots",
+      iconBg: "bg-emerald-500/15 text-emerald-300",
+      span: "",
+      accent: false,
+    },
+    {
+      icon: <Zap className="size-5" />,
+      title: t("land.feature.fast.title"),
+      body: t("land.feature.fast.body"),
+      tint: "bento-tint-amber",
+      tex: "card-tex-grid",
+      iconBg: "bg-amber-500/15 text-amber-300",
+      span: "sm:col-span-2",
+      accent: false,
+    },
+  ];
+
   return (
     <main className="flex flex-1 flex-col">
       {/* sticky glass nav */}
@@ -77,12 +77,13 @@ export default function Home() {
         <nav className="mx-auto flex w-full max-w-6xl items-center justify-between px-5 py-3 sm:px-10 sm:py-4">
           <Logo />
           <div className="flex items-center gap-1.5">
+            <LanguageToggle />
             <InstallButton iconOnly />
             <Link
               href="/login"
               className="-mr-2 inline-flex h-10 items-center rounded-full px-3 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)]"
             >
-              Masuk
+              {t("land.nav.signin")}
             </Link>
           </div>
         </nav>
@@ -102,15 +103,14 @@ export default function Home() {
 
         <h1 className="text-balance text-[clamp(2.5rem,9.5vw,6.5rem)] font-semibold leading-[0.92] tracking-[-0.045em]">
           <span className="hero-anim-line hero-anim-line-1 text-gradient-soft">
-            Earned in dollars,
+            {t("land.hero.line1")}
           </span>
           <br />
-          <span className="hero-anim-line-shimmer">spend in rupiah.</span>
+          <span className="hero-anim-line-shimmer">{t("land.hero.line2")}</span>
         </h1>
 
         <p className="hero-anim-fade hero-anim-fade-1 mt-6 max-w-xl text-pretty text-[15px] leading-relaxed text-[var(--color-fg-muted)] sm:mt-7 sm:text-lg">
-          Terima USDC dari klien luar negeri, langsung bayar QRIS di 40+ juta merchant
-          Indonesia. Tanpa popup tiap transaksi, tanpa ribet.
+          {t("land.hero.sub")}
         </p>
 
         <div className="hero-anim-fade hero-anim-fade-2 mt-9 flex w-full max-w-md flex-col items-stretch gap-2.5 sm:flex-row sm:items-center sm:gap-3 sm:justify-center">
@@ -118,31 +118,31 @@ export default function Home() {
             href="/login"
             className="btn-gradient-brand inline-flex h-12 items-center justify-center gap-2 rounded-full px-6 text-base font-medium text-white sm:flex-1"
           >
-            Mulai Sekarang
+            {t("land.hero.cta_primary")}
             <ArrowRight className="size-4" />
           </Link>
           <Link
             href="#cara-kerja"
             className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/[0.02] px-5 text-sm font-medium text-[var(--color-fg-muted)] backdrop-blur transition-colors hover:bg-white/[0.05] hover:text-[var(--color-fg)] sm:h-12 sm:flex-1 sm:bg-white/[0.03] sm:px-6 sm:text-base sm:text-[var(--color-fg)] sm:hover:bg-white/[0.06]"
           >
-            Lihat Cara Kerja
+            {t("land.hero.cta_secondary")}
           </Link>
         </div>
 
         <div className="hero-anim-fade hero-anim-fade-3 mt-9 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-[var(--color-fg-subtle)] sm:gap-x-6">
           <span className="inline-flex items-center gap-1.5">
             <ShieldCheck className="size-3.5" />
-            Non-custodial
+            {t("land.trust.noncustodial")}
           </span>
           <span aria-hidden className="text-[var(--color-fg-faint)]">·</span>
           <span className="inline-flex items-center gap-1.5">
             <Code2 className="size-3.5" />
-            Open source
+            {t("land.trust.opensource")}
           </span>
           <span aria-hidden className="text-[var(--color-fg-faint)]">·</span>
           <span className="inline-flex items-center gap-1.5">
             <Sparkles className="size-3.5" />
-            Powered by Solana
+            {t("land.trust.solana")}
           </span>
         </div>
 
@@ -151,13 +151,12 @@ export default function Home() {
           <div className="flex w-full items-center gap-3">
             <span className="h-px flex-1 bg-gradient-to-r from-transparent via-white/15 to-white/15" />
             <span className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--color-fg-subtle)]">
-              Cuplikan
+              {t("land.preview.divider")}
             </span>
             <span className="h-px flex-1 bg-gradient-to-l from-transparent via-white/15 to-white/15" />
           </div>
           <p className="mt-3 max-w-[20rem] text-center text-xs leading-relaxed text-[var(--color-fg-muted)] sm:text-sm">
-            Beginilah kira-kira tampilan saldo USDC dan aktivitas pembayaran kamu
-            sehari-hari di app.
+            {t("land.preview.caption")}
           </p>
           <PreviewCard className="mt-6 sm:mt-8" />
         </div>
@@ -174,16 +173,15 @@ export default function Home() {
           <div className="mb-10 flex flex-col items-start gap-3 sm:mb-14 sm:flex-row sm:items-end sm:justify-between">
             <div>
               <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--color-fg-subtle)]">
-                Kenapa dollarkilat
+                {t("land.bento.eyebrow")}
               </p>
               <h2 className="mt-2 max-w-md text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] sm:text-4xl">
-                Stablecoin yang akhirnya{" "}
-                <span className="text-gradient-brand">terasa lokal</span>.
+                {t("land.bento.heading_1")}{" "}
+                <span className="text-gradient-brand">{t("land.bento.heading_2")}</span>.
               </h2>
             </div>
             <p className="max-w-sm text-sm text-[var(--color-fg-muted)] sm:text-[15px]">
-              Dirancang untuk pekerja kreatif Indonesia yang dibayar global tapi belanja
-              tetap di warung sebelah.
+              {t("land.bento.sub")}
             </p>
           </div>
 
@@ -220,10 +218,10 @@ export default function Home() {
         <div className="relative mx-auto max-w-2xl px-5 py-16 sm:px-10 sm:py-24">
           <div className="mb-12 text-center sm:mb-16">
             <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--color-fg-subtle)]">
-              Cara Kerja
+              {t("land.steps.eyebrow")}
             </p>
             <h2 className="mt-2 text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] sm:text-4xl">
-              Tiga langkah, selesai.
+              {t("land.steps.heading")}
             </h2>
           </div>
 
@@ -263,7 +261,7 @@ export default function Home() {
           <div className="flex items-center gap-3">
             <Logo />
             <span aria-hidden className="text-[var(--color-fg-faint)]">·</span>
-            <span>Scan QRIS, pay with USDC</span>
+            <span>{t("land.footer.tagline")}</span>
           </div>
           <div className="flex items-center gap-1">
             <SocialLink href="https://x.com/dollarkilat" label="X (Twitter)">
@@ -280,6 +278,7 @@ export default function Home() {
 }
 
 function PreviewCard({ className = "" }: { className?: string }) {
+  const { t } = useT();
   return (
     <div className={`relative w-full max-w-sm ${className}`}>
       <div
@@ -289,10 +288,10 @@ function PreviewCard({ className = "" }: { className?: string }) {
       <div className="bg-card-mesh relative overflow-hidden rounded-3xl border border-white/[0.08] shadow-[0_20px_60px_-15px_rgb(0_0_0_/_0.6)]">
         <div className="px-5 pt-5 text-left sm:px-6 sm:pt-6">
           <div className="flex items-center justify-between">
-            <CardLabel>Saldo USDC</CardLabel>
+            <CardLabel>{t("dashboard.balance.label")}</CardLabel>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.14em] text-[var(--color-fg-subtle)]">
               <span className="pulse-dot" />
-              Live
+              {t("land.preview.live")}
             </span>
           </div>
           <p className="mt-2 font-mono text-[2.5rem] font-semibold tabular-nums leading-none tracking-tight text-[var(--color-fg)] sm:text-5xl">
@@ -300,13 +299,13 @@ function PreviewCard({ className = "" }: { className?: string }) {
           </p>
           <p className="mt-2 text-sm text-[var(--color-fg-muted)]">
             ≈ Rp 19.847.500{" "}
-            <span className="text-[var(--color-fg-faint)]">(estimasi)</span>
+            <span className="text-[var(--color-fg-faint)]">{t("dashboard.balance.estimate")}</span>
           </p>
         </div>
         <div className="mt-5 grid grid-cols-2 border-t border-white/[0.05] divide-x divide-white/[0.05]">
           <div className="px-4 py-3 text-left sm:px-5">
             <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-fg-subtle)]">
-              Bulan ini
+              {t("land.preview.this_month")}
             </p>
             <p className="mt-1 font-mono text-sm font-medium text-[var(--color-fg)]">
               + $1,247
@@ -314,10 +313,10 @@ function PreviewCard({ className = "" }: { className?: string }) {
           </div>
           <div className="px-4 py-3 text-left sm:px-5">
             <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-fg-subtle)]">
-              Transaksi
+              {t("land.preview.tx_count")}
             </p>
             <p className="mt-1 font-mono text-sm font-medium text-[var(--color-fg)]">
-              12 bulan ini
+              {t("land.preview.tx_count_value")}
             </p>
           </div>
         </div>

@@ -28,6 +28,8 @@ import {
 import { api, ApiError } from "@/lib/api";
 import { readCache, writeCache } from "@/lib/swr-cache";
 import { formatRupiah } from "@/lib/format";
+import { useT } from "@/lib/i18n";
+import { formatTxRelativeI18n } from "@/lib/tx-status";
 import { Logo } from "@/components/brand/logo";
 import { Card, CardLabel } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,6 +39,7 @@ const POLL_MS = 15_000;
 export default function MerchantPage() {
   const { ready, authenticated, getAccessToken } = usePrivy();
   const router = useRouter();
+  const { t } = useT();
   // Hydrate from in-memory cache so revisits render instantly while a
   // background fetch refreshes the data.
   const [data, setData] = useState<MerchantDashboardResponse | null>(() =>
@@ -105,21 +108,19 @@ export default function MerchantPage() {
             className="-mr-2 inline-flex h-9 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"
           >
             <ArrowLeft className="size-4" />
-            <span>Kembali</span>
+            <span>{t("common.back")}</span>
           </Link>
         </div>
       </header>
 
       <div className="mx-auto w-full max-w-2xl space-y-4 px-5 py-5 sm:space-y-5 sm:px-8 sm:py-8">
         <div>
-          <p className="text-sm text-[var(--color-fg-subtle)]">Merchant</p>
+          <p className="text-sm text-[var(--color-fg-subtle)]">{t("merchant.eyebrow")}</p>
           <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-[var(--color-fg)]">
-            {data?.merchant ? "Dashboard merchant" : "Klaim merchant kamu"}
+            {data?.merchant ? t("merchant.title.dashboard") : t("merchant.title.claim")}
           </h1>
           <p className="mt-1.5 text-sm text-[var(--color-fg-muted)]">
-            {data?.merchant
-              ? "Pembayaran masuk akan otomatis muncul di sini."
-              : "Daftarkan QRIS NMID kamu — pembayaran via dollarkilat akan masuk ke sini."}
+            {data?.merchant ? t("merchant.sub.dashboard") : t("merchant.sub.claim")}
           </p>
         </div>
 
@@ -130,7 +131,7 @@ export default function MerchantPage() {
         {error && !data && (
           <Card variant="outline">
             <div className="p-5 text-sm text-[var(--color-danger)]">
-              Gagal load dashboard: <span className="font-mono">{error}</span>
+              {t("merchant.fetch_failed", { error })}
             </div>
           </Card>
         )}
@@ -150,20 +151,14 @@ export default function MerchantPage() {
 // ── demo mode banner ─────────────────────────────────────────
 
 function DemoModeBanner() {
+  const { t } = useT();
   return (
     <div className="rounded-xl border border-amber-500/30 bg-amber-500/[0.07] p-3.5 sm:p-4">
       <div className="flex items-start gap-2.5">
         <Info className="mt-0.5 size-4 shrink-0 text-amber-300" />
         <div className="text-[12.5px] leading-relaxed text-amber-100/90">
-          <p className="font-semibold text-amber-200">
-            Demo / Sandbox mode
-          </p>
-          <p className="mt-0.5 text-amber-100/70">
-            IDR pembayaran <strong className="text-amber-100">disimulasikan</strong>{" "}
-            di sistem kami — belum di-routing ke rekening bank/e-wallet kamu.
-            Real settlement aktif setelah dollarkilat onboard ke partner PJP
-            (Flip Bisnis) post-fundraising.
-          </p>
+          <p className="font-semibold text-amber-200">{t("merchant.demo.title")}</p>
+          <p className="mt-0.5 text-amber-100/70">{t("merchant.demo.body")}</p>
         </div>
       </div>
     </div>
@@ -174,6 +169,7 @@ function DemoModeBanner() {
 
 function ClaimForm({ onClaimed }: { onClaimed: () => void }) {
   const { getAccessToken } = usePrivy();
+  const { t } = useT();
   const [name, setName] = useState("");
   const [nmid, setNmid] = useState("");
   const [city, setCity] = useState("");
@@ -217,13 +213,13 @@ function ClaimForm({ onClaimed }: { onClaimed: () => void }) {
           account_holder: bankComplete ? accountHolder.trim() : undefined,
         }),
       });
-      toast.success("Merchant berhasil diklaim");
+      toast.success(t("merchant.claim.toast.success"));
       onClaimed();
     } catch (err) {
       const msg =
         err instanceof ApiError
           ? err.code === "nmid_taken"
-            ? "NMID itu sudah diklaim. Pakai NMID lain."
+            ? t("merchant.claim.toast.nmid_taken")
             : `${err.code}: ${err.message}`
           : (err as Error).message ?? "unknown";
       toast.error(msg);
@@ -241,31 +237,31 @@ function ClaimForm({ onClaimed }: { onClaimed: () => void }) {
           </div>
           <div>
             <h2 className="text-base font-semibold text-[var(--color-fg)] sm:text-lg">
-              Daftarkan merchant
+              {t("merchant.claim.heading")}
             </h2>
             <p className="text-xs text-[var(--color-fg-muted)]">
-              Pakai QRIS NMID kamu untuk receive pembayaran via dollarkilat.
+              {t("merchant.claim.subheading")}
             </p>
           </div>
         </div>
 
         <Field
-          label="Nama merchant"
-          placeholder="Warung Bu Sri"
+          label={t("merchant.claim.field.name")}
+          placeholder={t("merchant.claim.field.name_placeholder")}
           value={name}
           onChange={setName}
         />
         <Field
-          label="QRIS NMID"
-          placeholder="ID2024XXXXXXXX"
+          label={t("merchant.claim.field.nmid")}
+          placeholder={t("merchant.claim.field.nmid_placeholder")}
           value={nmid}
           onChange={(v) => setNmid(v.toUpperCase())}
           mono
-          help="Cek di QRIS print kamu — biasanya 8-15 huruf/angka."
+          help={t("merchant.claim.field.nmid_help")}
         />
         <Field
-          label="Kota (opsional)"
-          placeholder="Yogyakarta"
+          label={t("merchant.claim.field.city")}
+          placeholder={t("merchant.claim.field.city_placeholder")}
           value={city}
           onChange={setCity}
         />
@@ -273,39 +269,37 @@ function ClaimForm({ onClaimed }: { onClaimed: () => void }) {
         {/* Bank routing — needed when PJP_PARTNER=flip */}
         <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
           <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--color-fg-subtle)]">
-            Bank routing (untuk settle ke rekening)
+            {t("merchant.claim.bank.title")}
           </p>
           <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-fg-muted)]">
-            Opsional di demo mode. Wajib kalau backend pakai{" "}
-            <span className="font-mono">PJP_PARTNER=flip</span> — Flip
-            disburse ke rekening bank.
+            {t("merchant.claim.bank.help")}
           </p>
 
           <div className="mt-3 space-y-3">
             <Field
-              label="Bank code"
-              placeholder="bca, mandiri, bni, qris"
+              label={t("merchant.claim.field.bank_code")}
+              placeholder={t("merchant.claim.field.bank_code_placeholder")}
               value={bankCode}
               onChange={(v) => setBankCode(v.toLowerCase())}
               mono
-              help="Pakai code Flip (bca/mandiri/bni/...). Cek dashboard partner."
+              help={t("merchant.claim.field.bank_code_help")}
             />
             <Field
-              label="Account number"
-              placeholder="1234567890"
+              label={t("merchant.claim.field.account_number")}
+              placeholder={t("merchant.claim.field.account_number_placeholder")}
               value={accountNumber}
               onChange={(v) => setAccountNumber(v.replace(/[^\d]/g, ""))}
               mono
             />
             <Field
-              label="Account holder"
-              placeholder="Bu Sri"
+              label={t("merchant.claim.field.account_holder")}
+              placeholder={t("merchant.claim.field.account_holder_placeholder")}
               value={accountHolder}
               onChange={setAccountHolder}
             />
             {bankPartial && !bankComplete && (
               <p className="text-[11px] text-[var(--color-warning)]">
-                Isi semua 3 field bank, atau kosongkan semua.
+                {t("merchant.claim.bank.partial_warn")}
               </p>
             )}
           </div>
@@ -320,7 +314,7 @@ function ClaimForm({ onClaimed }: { onClaimed: () => void }) {
           className="btn-gradient-brand inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-full px-5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
         >
           {submitting && <Loader2 className="size-4 animate-spin" />}
-          Klaim Merchant
+          {t("merchant.claim.cta")}
         </button>
       </div>
     </Card>
@@ -372,6 +366,7 @@ function Dashboard({
   data: MerchantDashboardResponse;
   onRefresh: () => void;
 }) {
+  const { t } = useT();
   const m = data.merchant!;
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -379,7 +374,7 @@ function Dashboard({
   async function copyNmid() {
     await navigator.clipboard.writeText(m.nmid);
     setCopied(true);
-    toast.success("NMID disalin");
+    toast.success(t("merchant.dashboard.copied_toast"));
     setTimeout(() => setCopied(false), 2000);
   }
 
@@ -392,7 +387,7 @@ function Dashboard({
               <Store className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <CardLabel>Merchant aktif</CardLabel>
+              <CardLabel>{t("merchant.dashboard.active_label")}</CardLabel>
               <div className="mt-1 flex flex-wrap items-center gap-1.5">
                 <p className="truncate text-base font-semibold text-[var(--color-fg)] sm:text-lg">
                   {m.name}
@@ -400,7 +395,7 @@ function Dashboard({
                 {!m.is_verified && (
                   <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-[0.12em] text-amber-300">
                     <ShieldAlert className="size-2.5" />
-                    Unverified
+                    {t("merchant.dashboard.unverified")}
                   </span>
                 )}
               </div>
@@ -411,7 +406,7 @@ function Dashboard({
             <button
               type="button"
               onClick={copyNmid}
-              aria-label="Salin NMID"
+              aria-label={t("merchant.dashboard.copy_aria")}
               className="-mr-2 -mt-2 inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-[11px] font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-white/[0.05] hover:text-[var(--color-fg)]"
             >
               {copied ? (
@@ -429,7 +424,7 @@ function Dashboard({
           <div className="border-t border-white/[0.05] bg-white/[0.02] px-5 py-3 sm:px-6">
             <div className="flex items-center gap-2 text-[11px] text-[var(--color-fg-muted)]">
               <Check className="size-3.5 text-[var(--color-success)]" />
-              <span>Settle ke</span>
+              <span>{t("merchant.dashboard.settle_to")}</span>
               <span className="font-mono uppercase text-[var(--color-fg)]">
                 {m.bank_code}
               </span>
@@ -445,9 +440,8 @@ function Dashboard({
             <p className="flex items-center gap-2 text-[11px] text-amber-200/90">
               <ShieldAlert className="size-3.5 shrink-0 text-amber-300" />
               <span>
-                <strong className="font-semibold">Bank routing kosong</strong> —
-                pakai mock PJP. Untuk settle real ke rekening: edit merchant
-                dengan bank info (Day 8 polish: edit form).
+                <strong className="font-semibold">{t("merchant.dashboard.bank_empty_strong")}</strong>
+                {" "}{t("merchant.dashboard.bank_empty_hint")}
               </span>
             </p>
           </div>
@@ -455,12 +449,12 @@ function Dashboard({
 
         <div className="grid grid-cols-2 border-t border-white/[0.05] divide-x divide-white/[0.05]">
           <Stat
-            label="Hari ini"
+            label={t("merchant.stat.today")}
             value={formatRupiah(data.total_today_idr)}
-            sub={`${data.count_today} transaksi`}
+            sub={t("merchant.stat.today_count", { n: data.count_today })}
           />
           <Stat
-            label="Bulan ini"
+            label={t("merchant.stat.month")}
             value={formatRupiah(data.total_month_idr)}
             sub={null}
             icon={<TrendingUp className="size-3.5" />}
@@ -470,25 +464,23 @@ function Dashboard({
 
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-[var(--color-fg)]">
-          Transaksi terakhir
+          {t("merchant.recent.title")}
         </h3>
         <button
           type="button"
           onClick={onRefresh}
           className="text-[11px] font-medium text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)]"
         >
-          Refresh
+          {t("common.refresh")}
         </button>
       </div>
 
       {data.recent.length === 0 ? (
         <Card variant="outline">
           <div className="px-5 py-10 text-center text-sm text-[var(--color-fg-muted)] sm:px-6 sm:py-12">
-            Belum ada pembayaran masuk.
+            {t("merchant.recent.empty")}
             <p className="mt-1 text-[11px] text-[var(--color-fg-subtle)]">
-              Bagikan QRIS dengan NMID{" "}
-              <span className="font-mono text-[var(--color-fg)]">{m.nmid}</span>{" "}
-              ke pelanggan.
+              {t("merchant.recent.empty_hint", { nmid: m.nmid })}
             </p>
           </div>
         </Card>
@@ -511,12 +503,9 @@ function Dashboard({
             <RefreshCw className="mt-0.5 size-4 shrink-0 text-[var(--color-fg-subtle)]" />
             <div className="flex-1 text-[12.5px] leading-relaxed text-[var(--color-fg-muted)]">
               <p className="font-semibold text-[var(--color-fg)]">
-                Ganti detail merchant
+                {t("merchant.manage.title")}
               </p>
-              <p className="mt-0.5">
-                Update nama, NMID, kota, atau bank routing. Riwayat transaksi
-                tetap ke-link ke merchant ini.
-              </p>
+              <p className="mt-0.5">{t("merchant.manage.body")}</p>
             </div>
           </div>
           <button
@@ -525,7 +514,7 @@ function Dashboard({
             className="mt-3 inline-flex h-9 items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 text-xs font-medium text-[var(--color-fg)] transition-colors hover:bg-white/[0.08]"
           >
             <Pencil className="size-3.5" />
-            Ganti merchant
+            {t("merchant.manage.cta")}
           </button>
         </div>
       </div>
@@ -554,6 +543,7 @@ function EditMerchantModal({
   onSaved: () => void;
 }) {
   const { getAccessToken } = usePrivy();
+  const { t } = useT();
   const [name, setName] = useState(merchant.name);
   const [nmid, setNmid] = useState(merchant.nmid);
   const [city, setCity] = useState(merchant.city ?? "");
@@ -610,7 +600,7 @@ function EditMerchantModal({
     if (!validBase || !bankValid || saving) return;
     const patch = buildPatch();
     if (Object.keys(patch).length === 0) {
-      toast.info("Tidak ada perubahan");
+      toast.info(t("merchant.edit.no_changes"));
       return;
     }
     setSaving(true);
@@ -622,16 +612,16 @@ function EditMerchantModal({
         token,
         body: JSON.stringify(patch),
       });
-      toast.success("Merchant diperbarui");
+      toast.success(t("merchant.edit.toast.success"));
       onSaved();
     } catch (err) {
       const msg =
         err instanceof ApiError
           ? err.code === "nmid_taken"
-            ? "NMID itu sudah diklaim merchant lain."
+            ? t("merchant.edit.toast.nmid_taken")
             : `${err.code}: ${err.message}`
           : (err as Error).message ?? "unknown";
-      toast.error(`Gagal update: ${msg}`);
+      toast.error(t("merchant.edit.toast.failed", { error: msg }));
     } finally {
       setSaving(false);
     }
@@ -655,18 +645,17 @@ function EditMerchantModal({
           </div>
           <div className="min-w-0 flex-1">
             <h3 className="text-base font-semibold text-[var(--color-fg)]">
-              Ganti detail merchant
+              {t("merchant.edit.heading")}
             </h3>
             <p className="mt-1.5 text-[12.5px] leading-relaxed text-[var(--color-fg-muted)]">
-              Riwayat transaksi tetep ke-link ke merchant ini — yang berubah
-              hanya field yang kamu edit.
+              {t("merchant.edit.subheading")}
             </p>
           </div>
           <button
             type="button"
             onClick={onCancel}
             disabled={saving}
-            aria-label="Tutup"
+            aria-label={t("merchant.edit.close_aria")}
             className="-mr-1 -mt-1 inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--color-fg-muted)] transition-colors hover:bg-white/[0.05] hover:text-[var(--color-fg)] disabled:opacity-50"
           >
             <X className="size-4" />
@@ -675,57 +664,57 @@ function EditMerchantModal({
 
         <div className="flex-1 space-y-4 overflow-y-auto p-5 sm:p-6">
           <Field
-            label="Nama merchant"
-            placeholder="Warung Bu Sri"
+            label={t("merchant.claim.field.name")}
+            placeholder={t("merchant.claim.field.name_placeholder")}
             value={name}
             onChange={setName}
           />
           <Field
-            label="QRIS NMID"
-            placeholder="ID2024XXXXXXXX"
+            label={t("merchant.claim.field.nmid")}
+            placeholder={t("merchant.claim.field.nmid_placeholder")}
             value={nmid}
             onChange={(v) => setNmid(v.toUpperCase())}
             mono
           />
           <Field
-            label="Kota (opsional)"
-            placeholder="Yogyakarta"
+            label={t("merchant.claim.field.city")}
+            placeholder={t("merchant.claim.field.city_placeholder")}
             value={city}
             onChange={setCity}
           />
 
           <div className="rounded-xl border border-white/[0.06] bg-white/[0.02] p-4">
             <p className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--color-fg-subtle)]">
-              Bank routing
+              {t("merchant.edit.bank.title")}
             </p>
             <p className="mt-1 text-[11px] leading-relaxed text-[var(--color-fg-muted)]">
-              Isi semua 3 field, atau kosongkan semua untuk balik ke mock PJP.
+              {t("merchant.edit.bank.help")}
             </p>
 
             <div className="mt-3 space-y-3">
               <Field
-                label="Bank code"
-                placeholder="bca, mandiri, bni, qris"
+                label={t("merchant.claim.field.bank_code")}
+                placeholder={t("merchant.claim.field.bank_code_placeholder")}
                 value={bankCode}
                 onChange={(v) => setBankCode(v.toLowerCase())}
                 mono
               />
               <Field
-                label="Account number"
-                placeholder="1234567890"
+                label={t("merchant.claim.field.account_number")}
+                placeholder={t("merchant.claim.field.account_number_placeholder")}
                 value={accountNumber}
                 onChange={(v) => setAccountNumber(v.replace(/[^\d]/g, ""))}
                 mono
               />
               <Field
-                label="Account holder"
-                placeholder="Bu Sri"
+                label={t("merchant.claim.field.account_holder")}
+                placeholder={t("merchant.claim.field.account_holder_placeholder")}
                 value={accountHolder}
                 onChange={setAccountHolder}
               />
               {bankPartial && !bankComplete && (
                 <p className="text-[11px] text-[var(--color-warning)]">
-                  Isi semua 3 field bank, atau kosongkan semua.
+                  {t("merchant.claim.bank.partial_warn")}
                 </p>
               )}
             </div>
@@ -739,7 +728,7 @@ function EditMerchantModal({
             disabled={saving}
             className="inline-flex h-11 flex-1 items-center justify-center rounded-full border border-white/10 bg-white/[0.03] px-4 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-white/[0.07] hover:text-[var(--color-fg)] disabled:opacity-50"
           >
-            Batal
+            {t("common.cancel")}
           </button>
           <button
             type="button"
@@ -748,7 +737,7 @@ function EditMerchantModal({
             className="btn-gradient-brand inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-4 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
             {saving && <Loader2 className="size-4 animate-spin" />}
-            Simpan
+            {t("common.save")}
           </button>
         </div>
       </div>
@@ -784,6 +773,7 @@ function Stat({
 }
 
 function TxRow({ tx }: { tx: MerchantTransaction }) {
+  const { t } = useT();
   const isCompleted = tx.status === "completed";
   const isPending =
     tx.status === "pjp_pending" || tx.status === "solana_confirmed";
@@ -791,11 +781,11 @@ function TxRow({ tx }: { tx: MerchantTransaction }) {
     tx.status === "failed_settlement" || tx.status === "rejected";
 
   const statusLabel = isCompleted
-    ? "Settled"
+    ? t("merchant.tx.status.settled")
     : isPending
-      ? "Pending"
+      ? t("merchant.tx.status.pending")
       : isFailed
-        ? "Failed"
+        ? t("merchant.tx.status.failed")
         : tx.status;
 
   const statusClass = isCompleted
@@ -814,7 +804,7 @@ function TxRow({ tx }: { tx: MerchantTransaction }) {
           + {formatRupiah(tx.amount_idr)}
         </p>
         <p className="text-[11px] text-[var(--color-fg-muted)]">
-          {formatRelative(tx.created_at)}
+          {formatTxRelativeI18n(tx.created_at, t)}
           {tx.signature && (
             <>
               {" · "}
@@ -840,21 +830,6 @@ function TxRow({ tx }: { tx: MerchantTransaction }) {
       </span>
     </div>
   );
-}
-
-function formatRelative(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const sec = Math.floor(diff / 1000);
-  if (sec < 5) return "barusan";
-  if (sec < 60) return `${sec}d lalu`;
-  const min = Math.floor(sec / 60);
-  if (min < 60) return `${min}m lalu`;
-  const hr = Math.floor(min / 60);
-  if (hr < 24) return `${hr}j lalu`;
-  return new Date(iso).toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "short",
-  });
 }
 
 function DashboardSkeleton() {

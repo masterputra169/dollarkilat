@@ -368,6 +368,169 @@ const dict = {
     "login.shield":
       "Saldo USDC kamu tetap di wallet kamu sendiri. Kami bukan custodian — transit only saat kamu authorize pembayaran.",
     "login.shield_strong": "bukan custodian",
+
+    // ── landing page (/) ───────────────────────────────────
+    "land.nav.signin": "Masuk",
+    "land.hero.line1": "Earned in dollars,",
+    "land.hero.line2": "spend in rupiah.",
+    "land.hero.sub":
+      "Terima USDC dari klien luar negeri, langsung bayar QRIS di 40+ juta merchant Indonesia. Tanpa popup tiap transaksi, tanpa ribet.",
+    "land.hero.cta_primary": "Mulai Sekarang",
+    "land.hero.cta_secondary": "Lihat Cara Kerja",
+    "land.trust.noncustodial": "Non-custodial",
+    "land.trust.opensource": "Open source",
+    "land.trust.solana": "Powered by Solana",
+    "land.preview.divider": "Cuplikan",
+    "land.preview.caption":
+      "Beginilah kira-kira tampilan saldo USDC dan aktivitas pembayaran kamu sehari-hari di app.",
+    "land.bento.eyebrow": "Kenapa dollarkilat",
+    "land.bento.heading_1": "Stablecoin yang akhirnya",
+    "land.bento.heading_2": "terasa lokal",
+    "land.bento.sub":
+      "Dirancang untuk pekerja kreatif Indonesia yang dibayar global tapi belanja tetap di warung sebelah.",
+    "land.feature.wallet.title": "Embedded wallet",
+    "land.feature.wallet.body":
+      "Privy bikin Solana wallet otomatis pakai email. Kunci aman di device, bukan di kita.",
+    "land.feature.qris.title": "QRIS instan",
+    "land.feature.qris.body": "Scan, konfirmasi, beres. 40+ juta merchant.",
+    "land.feature.rate.title": "Rate live",
+    "land.feature.rate.body": "Konversi USDC → IDR dari pasar real-time.",
+    "land.feature.fast.title": "Konfirmasi sekejap",
+    "land.feature.fast.body":
+      "Solana settle finalitas dalam ~400ms. Notifikasi langsung di app.",
+    "land.steps.eyebrow": "Cara Kerja",
+    "land.steps.heading": "Tiga langkah, selesai.",
+    "land.step.1.title": "Signup pakai email",
+    "land.step.1.body":
+      "Embedded Solana wallet otomatis dibuat. Tanpa seed phrase, tanpa Phantom install.",
+    "land.step.2.title": "Terima USDC",
+    "land.step.2.body":
+      "Bagikan alamat wallet kamu ke klien. USDC masuk langsung ke wallet Privy kamu.",
+    "land.step.3.title": "Scan QRIS, tap, selesai",
+    "land.step.3.body":
+      "Konversi otomatis USDC → IDR saat bayar. Tanpa popup tiap transaksi.",
+    "land.footer.tagline": "Scan QRIS, pay with USDC",
+    "land.preview.live": "Live",
+    "land.preview.this_month": "Bulan ini",
+    "land.preview.tx_count": "Transaksi",
+    "land.preview.tx_count_value": "12 bulan ini",
+
+    // ── /terms ─────────────────────────────────────────────
+    "terms.eyebrow": "Syarat Layanan",
+    "terms.title": "Syarat layanan dollarkilat",
+    "terms.version": "Versi hackathon · Berlaku 2026-05-03",
+    "terms.s1.title": "1. Status produk",
+    "terms.s1.body":
+      "dollarkilat saat ini ada di fase testing di Solana devnet. Saldo USDC pada dompet kamu di devnet tidak punya nilai nyata di bursa atau exchange manapun. Pembayaran QRIS ke merchant disimulasikan via partner sandbox (Flip Bisnis) — IDR yang \"diterima merchant\" tidak benar-benar disetorkan ke rekening merchant nyata sampai kami onboarding ke partner PJP berlisensi pasca-hackathon.",
+    "terms.s2.title": "2. Akun dan dompet",
+    "terms.s2.body":
+      "Akun kamu di-anchor ke alamat email yang kamu pakai untuk login lewat Privy. Privy membuat dompet Solana embedded otomatis saat signup. Kunci privat dompet kamu disimpan di Trusted Execution Environment milik Privy — bukan oleh kami. Kami bukan custodian; kami tidak pernah memegang USDC kamu kecuali saat transit pembayaran yang sudah kamu authorize.",
+    "terms.s3.title": "3. One-Tap signing",
+    "terms.s3.body":
+      "Saat kamu mengaktifkan One-Tap di onboarding, kamu memberikan session signer Privy ke server kami untuk menandatangani transaksi QRIS atas nama kamu — terbatas pada batas per transaksi dan harian yang kamu tentukan. Kamu bisa mencabut otorisasi ini kapan saja di Setelan. Setelah dicabut, setiap pembayaran akan butuh kamu mengaktifkan ulang One-Tap.",
+    "terms.s4.title": "4. Biaya",
+    "terms.s4.intro": "Selama fase testing devnet:",
+    "terms.s4.li1":
+      "Biaya transaksi 0.5% dipotong di atas nominal pembayaran QRIS (terlihat di rincian quote sebelum kamu konfirmasi).",
+    "terms.s4.li2":
+      "Biaya deposit 0.2% dipotong otomatis dari setiap USDC masuk ke dompet kamu, real-time on-chain.",
+    "terms.s4.li3":
+      "Biaya gas Solana kami tanggung sepenuhnya (sponsored). Kamu tidak perlu memegang SOL.",
+    "terms.s4.outro":
+      "Skema biaya bisa berubah pasca-hackathon dengan pemberitahuan sebelumnya.",
+    "terms.s5.title": "5. Welcome bonus",
+    "terms.s5.body":
+      "10 user pertama yang mendaftar di fase testing menerima 5 USDC welcome bonus dari treasury devnet kami, dikirim secara on-chain saat sync user pertama. Bonus ini bersifat satu kali, tidak bisa di-claim ulang, dan tidak punya nilai di luar devnet.",
+    "terms.s6.title": "6. Risiko",
+    "terms.s6.intro": "Karena ini fase testing devnet:",
+    "terms.s6.li1": "Saldo, transaksi, dan riwayat dapat di-reset tanpa pemberitahuan.",
+    "terms.s6.li2":
+      "Bug dapat menyebabkan transaksi gagal, double-charge, atau terlambat. Lapor ke kami jika terjadi.",
+    "terms.s6.li3":
+      "Devnet sendiri dapat di-reset oleh Solana Foundation kapan saja, yang akan menghapus semua riwayat on-chain.",
+    "terms.s6.warn":
+      "Jangan menyimpan USDC bernilai nyata di dompet dollarkilat selama fase devnet.",
+    "terms.s7.title": "7. Privasi data",
+    "terms.s7.body":
+      "Kami menyimpan: alamat email, alamat dompet Solana publik, riwayat transaksi, dan informasi merchant yang kamu klaim. Tidak ada data biometrik, tidak ada lokasi, tidak ada kontak. Data disimpan di Supabase (Postgres + service role key) dan hanya bisa diakses lewat API resmi dollarkilat. Kamu bisa minta penghapusan akun dengan menghubungi kami via email.",
+    "terms.s8.title": "8. Tidak ada jaminan",
+    "terms.s8.body":
+      "Layanan disediakan apa adanya (\"as is\") selama fase testing. Kami tidak menjamin uptime, ketepatan kurs, atau penyelesaian transaksi tepat waktu. Pasca-hackathon, SLA dan jaminan akan ditetapkan dalam Syarat Layanan v1.0.",
+    "terms.s9.title": "9. Kontak",
+    "terms.s9.body": "Pertanyaan, bug, atau permintaan penghapusan akun:",
+    "terms.footer":
+      "Dengan menggunakan dollarkilat, kamu setuju bahwa kamu paham status testing dan risiko yang dijabarkan di atas. Versi syarat layanan final akan diterbitkan saat dollarkilat resmi go-live di mainnet.",
+
+    // ── /merchant ──────────────────────────────────────────
+    "merchant.eyebrow": "Merchant",
+    "merchant.title.dashboard": "Dashboard merchant",
+    "merchant.title.claim": "Klaim merchant kamu",
+    "merchant.sub.dashboard": "Pembayaran masuk akan otomatis muncul di sini.",
+    "merchant.sub.claim":
+      "Daftarkan QRIS NMID kamu — pembayaran via dollarkilat akan masuk ke sini.",
+    "merchant.demo.title": "Demo / Sandbox mode",
+    "merchant.demo.body":
+      "IDR pembayaran disimulasikan di sistem kami — belum di-routing ke rekening bank/e-wallet kamu. Real settlement aktif setelah dollarkilat onboard ke partner PJP (Flip Bisnis) post-fundraising.",
+    "merchant.fetch_failed": "Gagal load dashboard: {error}",
+    "merchant.claim.heading": "Daftarkan merchant",
+    "merchant.claim.subheading":
+      "Pakai QRIS NMID kamu untuk receive pembayaran via dollarkilat.",
+    "merchant.claim.field.name": "Nama merchant",
+    "merchant.claim.field.name_placeholder": "Warung Bu Sri",
+    "merchant.claim.field.nmid": "QRIS NMID",
+    "merchant.claim.field.nmid_placeholder": "ID2024XXXXXXXX",
+    "merchant.claim.field.nmid_help":
+      "Cek di QRIS print kamu — biasanya 8-15 huruf/angka.",
+    "merchant.claim.field.city": "Kota (opsional)",
+    "merchant.claim.field.city_placeholder": "Yogyakarta",
+    "merchant.claim.bank.title": "Bank routing (untuk settle ke rekening)",
+    "merchant.claim.bank.help":
+      "Opsional di demo mode. Wajib kalau backend pakai PJP_PARTNER=flip — Flip disburse ke rekening bank.",
+    "merchant.claim.field.bank_code": "Bank code",
+    "merchant.claim.field.bank_code_placeholder": "bca, mandiri, bni, qris",
+    "merchant.claim.field.bank_code_help":
+      "Pakai code Flip (bca/mandiri/bni/...). Cek dashboard partner.",
+    "merchant.claim.field.account_number": "Account number",
+    "merchant.claim.field.account_number_placeholder": "1234567890",
+    "merchant.claim.field.account_holder": "Account holder",
+    "merchant.claim.field.account_holder_placeholder": "Bu Sri",
+    "merchant.claim.bank.partial_warn":
+      "Isi semua 3 field bank, atau kosongkan semua.",
+    "merchant.claim.cta": "Klaim Merchant",
+    "merchant.claim.toast.success": "Merchant berhasil diklaim",
+    "merchant.claim.toast.nmid_taken": "NMID itu sudah diklaim. Pakai NMID lain.",
+    "merchant.dashboard.active_label": "Merchant aktif",
+    "merchant.dashboard.unverified": "Unverified",
+    "merchant.dashboard.copy_aria": "Salin NMID",
+    "merchant.dashboard.copied_toast": "NMID disalin",
+    "merchant.dashboard.settle_to": "Settle ke",
+    "merchant.dashboard.bank_empty_strong": "Bank routing kosong",
+    "merchant.dashboard.bank_empty_hint":
+      "— pakai mock PJP. Untuk settle real ke rekening: edit merchant dengan bank info.",
+    "merchant.stat.today": "Hari ini",
+    "merchant.stat.today_count": "{n} transaksi",
+    "merchant.stat.month": "Bulan ini",
+    "merchant.recent.title": "Transaksi terakhir",
+    "merchant.recent.empty": "Belum ada pembayaran masuk.",
+    "merchant.recent.empty_hint": "Bagikan QRIS dengan NMID {nmid} ke pelanggan.",
+    "merchant.manage.title": "Ganti detail merchant",
+    "merchant.manage.body":
+      "Update nama, NMID, kota, atau bank routing. Riwayat transaksi tetap ke-link ke merchant ini.",
+    "merchant.manage.cta": "Ganti merchant",
+    "merchant.edit.heading": "Ganti detail merchant",
+    "merchant.edit.subheading":
+      "Riwayat transaksi tetep ke-link ke merchant ini — yang berubah hanya field yang kamu edit.",
+    "merchant.edit.close_aria": "Tutup",
+    "merchant.edit.bank.title": "Bank routing",
+    "merchant.edit.bank.help":
+      "Isi semua 3 field, atau kosongkan semua untuk balik ke mock PJP.",
+    "merchant.edit.no_changes": "Tidak ada perubahan",
+    "merchant.edit.toast.success": "Merchant diperbarui",
+    "merchant.edit.toast.nmid_taken": "NMID itu sudah diklaim merchant lain.",
+    "merchant.edit.toast.failed": "Gagal update: {error}",
+    "merchant.tx.status.settled": "Settled",
+    "merchant.tx.status.pending": "Pending",
+    "merchant.tx.status.failed": "Failed",
   },
   en: {
     // ── common ─────────────────────────────────────────────
@@ -703,6 +866,169 @@ const dict = {
     "login.shield":
       "Your USDC balance stays in your own wallet. We are not a custodian — transit only when you authorize a payment.",
     "login.shield_strong": "not a custodian",
+
+    // ── landing page (/) ───────────────────────────────────
+    "land.nav.signin": "Sign in",
+    "land.hero.line1": "Earned in dollars,",
+    "land.hero.line2": "spend in rupiah.",
+    "land.hero.sub":
+      "Receive USDC from overseas clients and pay QRIS at 40M+ Indonesian merchants instantly. No popup per transaction, no friction.",
+    "land.hero.cta_primary": "Get Started",
+    "land.hero.cta_secondary": "See How It Works",
+    "land.trust.noncustodial": "Non-custodial",
+    "land.trust.opensource": "Open source",
+    "land.trust.solana": "Powered by Solana",
+    "land.preview.divider": "Preview",
+    "land.preview.caption":
+      "Roughly what your USDC balance and daily payment activity look like in the app.",
+    "land.bento.eyebrow": "Why dollarkilat",
+    "land.bento.heading_1": "A stablecoin that finally",
+    "land.bento.heading_2": "feels local",
+    "land.bento.sub":
+      "Built for Indonesian creatives who get paid globally but spend at the warung next door.",
+    "land.feature.wallet.title": "Embedded wallet",
+    "land.feature.wallet.body":
+      "Privy auto-creates a Solana wallet from your email. Keys stay safe on the device, not with us.",
+    "land.feature.qris.title": "Instant QRIS",
+    "land.feature.qris.body": "Scan, confirm, done. 40M+ merchants.",
+    "land.feature.rate.title": "Live rate",
+    "land.feature.rate.body": "Real-time market USDC → IDR conversion.",
+    "land.feature.fast.title": "Lightning confirms",
+    "land.feature.fast.body":
+      "Solana settles in ~400ms. In-app notifications fire instantly.",
+    "land.steps.eyebrow": "How It Works",
+    "land.steps.heading": "Three steps, done.",
+    "land.step.1.title": "Sign up with email",
+    "land.step.1.body":
+      "Embedded Solana wallet is auto-created. No seed phrase, no Phantom install.",
+    "land.step.2.title": "Receive USDC",
+    "land.step.2.body":
+      "Share your wallet address with clients. USDC lands directly in your Privy wallet.",
+    "land.step.3.title": "Scan QRIS, tap, done",
+    "land.step.3.body":
+      "Auto USDC → IDR conversion at payment time. No popup per transaction.",
+    "land.footer.tagline": "Scan QRIS, pay with USDC",
+    "land.preview.live": "Live",
+    "land.preview.this_month": "This month",
+    "land.preview.tx_count": "Transactions",
+    "land.preview.tx_count_value": "12 this month",
+
+    // ── /terms ─────────────────────────────────────────────
+    "terms.eyebrow": "Terms of Service",
+    "terms.title": "dollarkilat Terms of Service",
+    "terms.version": "Hackathon edition · Effective 2026-05-03",
+    "terms.s1.title": "1. Product status",
+    "terms.s1.body":
+      "dollarkilat is currently in the testing phase on Solana devnet. USDC balances in your devnet wallet have no real value on any exchange. QRIS payments to merchants are simulated via a sandbox partner (Flip Bisnis) — the IDR \"received by the merchant\" is not actually deposited into a real merchant account until we onboard with a licensed PJP partner post-hackathon.",
+    "terms.s2.title": "2. Account and wallet",
+    "terms.s2.body":
+      "Your account is anchored to the email address you use to log in via Privy. Privy automatically creates an embedded Solana wallet at signup. Your wallet's private key is held in Privy's Trusted Execution Environment — not by us. We are not a custodian; we never hold your USDC except in transit for payments you have authorized.",
+    "terms.s3.title": "3. One-Tap signing",
+    "terms.s3.body":
+      "When you enable One-Tap during onboarding, you delegate a Privy session signer to our server to sign QRIS transactions on your behalf — bounded by per-transaction and daily limits you set. You can revoke this authorization any time in Settings. Once revoked, every payment will require you to re-enable One-Tap.",
+    "terms.s4.title": "4. Fees",
+    "terms.s4.intro": "During the devnet testing phase:",
+    "terms.s4.li1":
+      "0.5% transaction fee is added on top of the QRIS payment amount (visible in the quote breakdown before you confirm).",
+    "terms.s4.li2":
+      "0.2% deposit fee is automatically deducted from every USDC that lands in your wallet, real-time on-chain.",
+    "terms.s4.li3":
+      "Solana gas fees are fully covered by us (sponsored). You don't need to hold any SOL.",
+    "terms.s4.outro":
+      "Fee schedule may change post-hackathon with prior notice.",
+    "terms.s5.title": "5. Welcome bonus",
+    "terms.s5.body":
+      "The first 10 users who sign up during testing receive a 5 USDC welcome bonus from our devnet treasury, sent on-chain at first user sync. This bonus is one-time, cannot be re-claimed, and has no value outside devnet.",
+    "terms.s6.title": "6. Risks",
+    "terms.s6.intro": "Because this is devnet testing:",
+    "terms.s6.li1": "Balances, transactions, and history may be reset without notice.",
+    "terms.s6.li2":
+      "Bugs may cause transactions to fail, double-charge, or arrive late. Report any issues to us.",
+    "terms.s6.li3":
+      "Devnet itself may be reset by the Solana Foundation at any time, which will wipe all on-chain history.",
+    "terms.s6.warn":
+      "Do not keep USDC with real value in a dollarkilat wallet during the devnet phase.",
+    "terms.s7.title": "7. Data privacy",
+    "terms.s7.body":
+      "We store: your email address, public Solana wallet address, transaction history, and merchant information you claim. No biometric data, no location, no contacts. Data is stored in Supabase (Postgres + service role key) and only accessible via the official dollarkilat API. You can request account deletion by contacting us via email.",
+    "terms.s8.title": "8. No warranties",
+    "terms.s8.body":
+      "The service is provided \"as is\" during testing. We do not guarantee uptime, exchange rate accuracy, or on-time settlement. Post-hackathon, SLAs and guarantees will be defined in Terms of Service v1.0.",
+    "terms.s9.title": "9. Contact",
+    "terms.s9.body": "Questions, bugs, or account deletion requests:",
+    "terms.footer":
+      "By using dollarkilat, you confirm that you understand the testing status and risks outlined above. The final Terms of Service will be published when dollarkilat officially goes live on mainnet.",
+
+    // ── /merchant ──────────────────────────────────────────
+    "merchant.eyebrow": "Merchant",
+    "merchant.title.dashboard": "Merchant dashboard",
+    "merchant.title.claim": "Claim your merchant",
+    "merchant.sub.dashboard": "Incoming payments will automatically appear here.",
+    "merchant.sub.claim":
+      "Register your QRIS NMID — payments via dollarkilat will land here.",
+    "merchant.demo.title": "Demo / Sandbox mode",
+    "merchant.demo.body":
+      "IDR payments are simulated in our system — not yet routed to your bank/e-wallet account. Real settlement activates once dollarkilat onboards a PJP partner (Flip Bisnis) post-fundraising.",
+    "merchant.fetch_failed": "Failed to load dashboard: {error}",
+    "merchant.claim.heading": "Register a merchant",
+    "merchant.claim.subheading":
+      "Use your QRIS NMID to receive payments via dollarkilat.",
+    "merchant.claim.field.name": "Merchant name",
+    "merchant.claim.field.name_placeholder": "Warung Bu Sri",
+    "merchant.claim.field.nmid": "QRIS NMID",
+    "merchant.claim.field.nmid_placeholder": "ID2024XXXXXXXX",
+    "merchant.claim.field.nmid_help":
+      "Check your printed QRIS — usually 8-15 letters/digits.",
+    "merchant.claim.field.city": "City (optional)",
+    "merchant.claim.field.city_placeholder": "Yogyakarta",
+    "merchant.claim.bank.title": "Bank routing (for real settlement)",
+    "merchant.claim.bank.help":
+      "Optional in demo mode. Required if backend uses PJP_PARTNER=flip — Flip disburses to a bank account.",
+    "merchant.claim.field.bank_code": "Bank code",
+    "merchant.claim.field.bank_code_placeholder": "bca, mandiri, bni, qris",
+    "merchant.claim.field.bank_code_help":
+      "Use Flip codes (bca/mandiri/bni/...). Check the partner dashboard.",
+    "merchant.claim.field.account_number": "Account number",
+    "merchant.claim.field.account_number_placeholder": "1234567890",
+    "merchant.claim.field.account_holder": "Account holder",
+    "merchant.claim.field.account_holder_placeholder": "Bu Sri",
+    "merchant.claim.bank.partial_warn":
+      "Fill all 3 bank fields, or leave them all blank.",
+    "merchant.claim.cta": "Claim Merchant",
+    "merchant.claim.toast.success": "Merchant claimed",
+    "merchant.claim.toast.nmid_taken": "That NMID is already claimed. Use another.",
+    "merchant.dashboard.active_label": "Active merchant",
+    "merchant.dashboard.unverified": "Unverified",
+    "merchant.dashboard.copy_aria": "Copy NMID",
+    "merchant.dashboard.copied_toast": "NMID copied",
+    "merchant.dashboard.settle_to": "Settle to",
+    "merchant.dashboard.bank_empty_strong": "Bank routing empty",
+    "merchant.dashboard.bank_empty_hint":
+      "— using mock PJP. To settle to a real account: edit the merchant with bank info.",
+    "merchant.stat.today": "Today",
+    "merchant.stat.today_count": "{n} transactions",
+    "merchant.stat.month": "This month",
+    "merchant.recent.title": "Recent payments",
+    "merchant.recent.empty": "No incoming payments yet.",
+    "merchant.recent.empty_hint": "Share QRIS with NMID {nmid} with customers.",
+    "merchant.manage.title": "Edit merchant details",
+    "merchant.manage.body":
+      "Update name, NMID, city, or bank routing. Transaction history stays linked to this merchant.",
+    "merchant.manage.cta": "Edit merchant",
+    "merchant.edit.heading": "Edit merchant details",
+    "merchant.edit.subheading":
+      "Transaction history stays linked to this merchant — only edited fields change.",
+    "merchant.edit.close_aria": "Close",
+    "merchant.edit.bank.title": "Bank routing",
+    "merchant.edit.bank.help":
+      "Fill all 3 fields, or clear all to revert to mock PJP.",
+    "merchant.edit.no_changes": "No changes",
+    "merchant.edit.toast.success": "Merchant updated",
+    "merchant.edit.toast.nmid_taken": "That NMID is already claimed by another merchant.",
+    "merchant.edit.toast.failed": "Update failed: {error}",
+    "merchant.tx.status.settled": "Settled",
+    "merchant.tx.status.pending": "Pending",
+    "merchant.tx.status.failed": "Failed",
   },
 } as const;
 
