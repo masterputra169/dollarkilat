@@ -7,7 +7,6 @@ import {
   createSolanaRpcSubscriptions,
 } from "@solana/kit";
 import { publicEnv } from "@/lib/env";
-import { LanguageProvider } from "@/lib/i18n";
 
 const solanaConnectors = toSolanaWalletConnectors();
 
@@ -55,7 +54,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       }}
     >
-      <LanguageProvider>{children}</LanguageProvider>
+      {children}
     </PrivyProvider>
   );
 }

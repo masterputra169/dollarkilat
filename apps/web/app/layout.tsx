@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { InstallPrompt } from "@/components/install-prompt";
+import { LanguageProvider } from "@/lib/i18n";
 import { HistoryUrlPolyfill } from "./history-url-polyfill";
 import "./globals.css";
 
@@ -55,9 +56,14 @@ export default function RootLayout({
       className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="bg-aurora min-h-full flex flex-col relative">
-        <HistoryUrlPolyfill />
-        {children}
-        <InstallPrompt />
+        {/* LanguageProvider wraps EVERYTHING (landing + terms + authed) so
+            useT() works regardless of route group. PrivyProvider stays
+            scoped to (authed) since auth isn't needed on public pages. */}
+        <LanguageProvider>
+          <HistoryUrlPolyfill />
+          {children}
+          <InstallPrompt />
+        </LanguageProvider>
       </body>
     </html>
   );
