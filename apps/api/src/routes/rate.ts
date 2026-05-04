@@ -5,9 +5,10 @@ export const rate = new Hono();
 
 /**
  * GET /rate/usdc-idr
- * Public price endpoint — no auth, since CoinGecko data is already public.
- * The 60s server-side cache (in oracle.ts) keeps us under free-tier limits
- * even if every authenticated dashboard polls aggressively.
+ * Public price endpoint — no auth, since upstream data is already public.
+ * Backed by Indodax USDC/IDR ticker (primary) with CoinGecko fallback.
+ * The 5-min server-side cache (in oracle.ts) keeps us well under upstream
+ * rate limits even if every authenticated dashboard polls aggressively.
  *
  * Response: { rate, cached_at } — RateResponseSchema in @dollarkilat/shared
  */
