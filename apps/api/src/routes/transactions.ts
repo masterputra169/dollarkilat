@@ -130,6 +130,98 @@ transactions.get("/tax-summary", async (c) => {
 });
 
 /**
+ * Calendar-month boundary in Asia/Jakarta (UTC+7, no DST). Returned as
+ * ISO-UTC so it can be passed straight into Supabase's `created_at >= ?`.
+ *
+ * We use a fixed-offset shift because IDN does not observe DST — no need
+ * to drag in an IANA tz lib.
+ */
+function startOfCurrentMonthJakartaUTC(): string {
+  const JAKARTA_OFFSET_MS = 7 * 60 * 60 * 1000;
+  const jakartaNow = new Date(Date.now() + JAKARTA_OFFSET_MS);
+  const y = jakartaNow.getUTCFullYear();
+  const m = jakartaNow.getUTCMonth();
+  // Jakarta midnight on the 1st = (Y-M-1 00:00 UTC) shifted back 7h.
+  const firstDayMs = Date.UTC(y, m, 1) - JAKARTA_OFFSET_MS;
+  return new Date(firstDayMs).toISOString();
+}
+
+/**
+ * GET /transactions/monthly-stats
+ * Calendar-month income vs expense roll-up for the dashboard balance card.
+ *
+ *   income = deposit + welcome_bonus  (in USDC lamports — stays native)
+ *   expense = qris_payment with settled status  (in IDR — stays native)
+ *
+ * Currency-honest split: USDC comes IN, IDR goes OUT. We don't cross-rate
+ * here so the displayed numbers match what actually moved.
+ *
+ * Settled statuses for expense: solana_confirmed | pjp_pending | completed
+ *   — all states where USDC has already left the user's wallet on-chain.
+ *   Excludes: created (not submitted), rejected/failed_settlement (no debit),
+ *   user_signing/solana_pending (in flight, may roll back).
+ *
+ * Calendar boundary uses Asia/Jakarta (UTC+7) so "May 1" in Jakarta starts
+ * at 17:00 UTC on April 30.
+ */
+transactions.get("/monthly-stats", async (c) => {
+  const userId = await getInternalUserId(c.get("privyUserId"));
+  if (!userId) return c.json({ error: "user_not_synced" }, 404);
+
+  const monthStart = startOfCurrentMonthJakartaUTC();
+
+  const { data, error } = await supabaseAdmin
+    .from("transactions")
+    .select("type, status, amount_idr, amount_usdc_lamports")
+    .eq("user_id", userId)
+    .gte("created_at", monthStart);
+
+  if (error) {
+    console.error("[transactions/monthly-stats] query failed:", error);
+    return c.json({ error: "lookup_failed" }, 500);
+  }
+
+  const SETTLED_STATUSES = new Set([
+    "solana_confirmed",
+    "pjp_pending",
+    "completed",
+  ]);
+
+  let incomeLamports = BigInt(0);
+  let incomeCount = 0;
+  let expenseIdr = 0;
+  let expenseCount = 0;
+
+  for (const row of data ?? []) {
+    const lamports = BigInt(row.amount_usdc_lamports as number);
+    const idr = Number(row.amount_idr ?? 0);
+
+    if (row.type === "deposit" || row.type === "welcome_bonus") {
+      incomeLamports += lamports;
+      incomeCount += 1;
+    } else if (
+      row.type === "qris_payment" &&
+      SETTLED_STATUSES.has(row.status as string)
+    ) {
+      expenseIdr += idr;
+      expenseCount += 1;
+    }
+  }
+
+  return c.json({
+    month_start: monthStart,
+    income: {
+      usdc_lamports: incomeLamports.toString(),
+      count: incomeCount,
+    },
+    expense: {
+      idr: expenseIdr,
+      count: expenseCount,
+    },
+  });
+});
+
+/**
  * GET /transactions
  * List authenticated user's transactions, newest first.
  * Cursor pagination via `?before=<created_at>`.

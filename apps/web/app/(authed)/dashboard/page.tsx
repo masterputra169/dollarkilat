@@ -45,6 +45,13 @@ import { InstallButton } from "@/components/install-button";
 
 const BALANCE_POLL_MS = 30_000;
 
+/** Shape returned by GET /transactions/monthly-stats. */
+interface MonthlyStats {
+  month_start: string;
+  income: { usdc_lamports: string; count: number };
+  expense: { idr: number; count: number };
+}
+
 export default function DashboardPage() {
   const { ready, authenticated, user, getAccessToken } = usePrivy();
   const { wallets: solanaWallets } = useSolanaWallets();
@@ -61,6 +68,9 @@ export default function DashboardPage() {
   const [balanceError, setBalanceError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [recentTx, setRecentTx] = useState<UserTransaction[] | null>(null);
+  const [monthlyStats, setMonthlyStats] = useState<MonthlyStats | null>(() =>
+    readCache<MonthlyStats>("dashboard:monthly-stats"),
+  );
 
   useEffect(() => {
     if (ready && !authenticated) {
@@ -127,15 +137,29 @@ export default function DashboardPage() {
           ? api<BalanceResponse>(`/balance/${solanaAddress}`, { token })
           : Promise.resolve(null),
         api<RateResponse>("/rate/usdc-idr"),
+        token
+          ? api<MonthlyStats>("/transactions/monthly-stats", { token })
+          : Promise.resolve(null),
       ]);
       const balResult = results[0];
       const rateResult = results[1];
+      const statsResult = results[2];
 
       if (balResult.status === "fulfilled" && balResult.value) {
         setBalance(balResult.value);
       }
       if (rateResult.status === "fulfilled") {
         setRate(rateResult.value);
+      }
+      if (statsResult.status === "fulfilled" && statsResult.value) {
+        setMonthlyStats(statsResult.value);
+        writeCache("dashboard:monthly-stats", statsResult.value);
+      } else if (statsResult.status === "rejected") {
+        // Non-fatal — keep stale cache (or null = section hidden).
+        console.warn(
+          "[dashboard] monthly-stats fetch failed:",
+          errCode(statsResult.reason),
+        );
       }
 
       const balErr =
@@ -448,6 +472,7 @@ export default function DashboardPage() {
               <span className="text-[var(--color-fg-faint)]">{t("dashboard.balance.estimate")}</span>
             </p>
           </div>
+          <MonthlyStatsStrip stats={monthlyStats} />
           <div className="mt-4 flex items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)] px-5 py-2.5 text-xs text-[var(--color-fg-muted)] sm:mt-5 sm:px-8 sm:py-3">
             <span className="truncate">
               {balanceError
@@ -823,5 +848,74 @@ function TaxSummaryCard({ token }: { token: () => Promise<string | null> }) {
         </div>
       </div>
     </Card>
+  );
+}
+
+/**
+ * Monthly income/expense strip rendered inside the balance card, just above
+ * the "Updated · 1 USDC = Rp …" footer. Lives in the same card so the
+ * balance hero stays as one cohesive block.
+ *
+ * Currency-honest split: income shown in USDC (since deposits arrive in
+ * USDC), expense shown in IDR (since QRIS payments are quoted in IDR).
+ * No cross-rate conversion — keeps numbers exactly matching what moved.
+ *
+ * Hidden when both buckets are zero (e.g. brand-new user, first day) so
+ * we don't ship a card full of "0" placeholders.
+ */
+function MonthlyStatsStrip({ stats }: { stats: MonthlyStats | null }) {
+  const { t } = useT();
+  if (!stats) return null;
+
+  const ZERO = BigInt(0);
+  const ONE_MILLION = BigInt(1_000_000);
+  const incomeLamports = BigInt(stats.income.usdc_lamports);
+  const expenseIdr = stats.expense.idr;
+
+  if (incomeLamports === ZERO && expenseIdr === 0) return null;
+
+  // 6-decimal USDC formatter (BigInt → trimmed string), copied from the
+  // TaxSummaryCard helper. Inline to avoid a one-shot util module.
+  const fmtUsdc = (lamports: bigint): string => {
+    const whole = lamports / ONE_MILLION;
+    const frac = lamports % ONE_MILLION;
+    const fracStr = frac.toString().padStart(6, "0").replace(/0+$/, "");
+    return fracStr ? `${whole}.${fracStr}` : `${whole}.0`;
+  };
+
+  return (
+    <div className="mt-4 grid grid-cols-2 gap-px border-t border-[var(--color-border-subtle)] bg-[var(--color-border-subtle)] sm:mt-5">
+      {/* Income — deposits + welcome bonus, in USDC */}
+      <div className="bg-[var(--color-bg)] px-5 py-3 sm:px-8">
+        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-fg-muted)]">
+          <ArrowDownToLine className="size-3 text-emerald-400" />
+          {t("dashboard.monthly.title")} · {t("dashboard.monthly.income")}
+        </div>
+        <p className="mt-1 font-mono text-base font-semibold tabular-nums text-emerald-300 sm:text-lg">
+          +{fmtUsdc(incomeLamports)}
+          <span className="ml-1 text-xs font-medium text-[var(--color-fg-muted)]">
+            USDC
+          </span>
+        </p>
+        <p className="mt-0.5 text-[11px] text-[var(--color-fg-subtle)]">
+          {t("dashboard.monthly.income_count", { count: stats.income.count })}
+        </p>
+      </div>
+
+      {/* Expense — settled QRIS payments, in IDR */}
+      <div className="bg-[var(--color-bg)] px-5 py-3 sm:px-8">
+        <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-fg-muted)]">
+          <ArrowUpFromLine className="size-3 text-amber-400" />
+          {t("dashboard.monthly.title")} · {t("dashboard.monthly.expense")}
+        </div>
+        <p className="mt-1 font-mono text-base font-semibold tabular-nums text-amber-300 sm:text-lg">
+          {expenseIdr > 0 ? "−" : ""}
+          {formatRupiah(expenseIdr)}
+        </p>
+        <p className="mt-0.5 text-[11px] text-[var(--color-fg-subtle)]">
+          {t("dashboard.monthly.expense_count", { count: stats.expense.count })}
+        </p>
+      </div>
+    </div>
   );
 }
