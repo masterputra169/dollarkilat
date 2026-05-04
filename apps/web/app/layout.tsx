@@ -15,13 +15,20 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ?? "https://dollarkilat.xyz";
+
+const SITE_TITLE = "dollarkilat — Earned in dollars, spend in rupiah";
+const SITE_DESCRIPTION =
+  "Indonesia-first payment app for people who earn in USDC. Scan any QRIS code and pay instantly from your stablecoin balance — no hassle, no manual conversion.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "dollarkilat — Earned in dollars, spend in rupiah",
+    default: SITE_TITLE,
     template: "%s | dollarkilat",
   },
-  description:
-    "Aplikasi pembayaran Indonesia-first untuk kamu yang dapat penghasilan dalam USDC. Scan QRIS, bayar instan.",
+  description: SITE_DESCRIPTION,
   manifest: "/manifest.webmanifest",
   applicationName: "dollarkilat",
   appleWebApp: {
@@ -32,6 +39,59 @@ export const metadata: Metadata = {
   formatDetection: {
     telephone: false,
   },
+  keywords: [
+    "USDC",
+    "stablecoin",
+    "QRIS",
+    "Indonesia",
+    "payment app",
+    "rupiah",
+    "freelancer",
+    "remote worker",
+    "content creator",
+    "Solana",
+    "PWA",
+    "fintech",
+    "crypto payment",
+    "stablecoin wallet",
+  ],
+  authors: [{ name: "dollarkilat" }],
+  creator: "dollarkilat",
+  publisher: "dollarkilat",
+  alternates: {
+    canonical: "/",
+    languages: {
+      "id-ID": "/",
+      "en-US": "/",
+    },
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    alternateLocale: ["id_ID"],
+    url: SITE_URL,
+    siteName: "dollarkilat",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    // /opengraph-image is auto-generated from app/opengraph-image.tsx
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_TITLE,
+    description: SITE_DESCRIPTION,
+    // /twitter-image is auto-generated from app/twitter-image.tsx (re-exports OG)
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
+  category: "finance",
   // Icons handled via Next.js file convention:
   //   app/icon.png       → favicon (browser tab)
   //   app/apple-icon.png → iOS home screen
