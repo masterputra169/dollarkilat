@@ -21,9 +21,10 @@ import type {
 } from "@dollarkilat/shared";
 import { api, ApiError } from "@/lib/api";
 import { formatRupiah, formatUSDC } from "@/lib/format";
+import { useT } from "@/lib/i18n";
 import {
   formatTxDate,
-  statusToLabel,
+  statusToLabelKey,
   statusToTone,
 } from "@/lib/tx-status";
 import { Logo } from "@/components/brand/logo";
@@ -32,13 +33,23 @@ import { Card, CardLabel } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const TIMELINE_STEPS = [
-  { key: "created", label: "Dibuat" },
-  { key: "solana_pending", label: "USDC dikirim ke jaringan Solana" },
-  { key: "solana_confirmed", label: "USDC dikonfirmasi" },
-  { key: "pjp_pending", label: "Settlement IDR diproses" },
-  { key: "completed", label: "Selesai — IDR diterima" },
-] as const;
+type TimelineKey =
+  | "tx_detail.timeline.created"
+  | "tx_detail.timeline.solana_pending"
+  | "tx_detail.timeline.solana_confirmed"
+  | "tx_detail.timeline.pjp_pending"
+  | "tx_detail.timeline.completed";
+
+const TIMELINE_STEPS: ReadonlyArray<{
+  key: "created" | "solana_pending" | "solana_confirmed" | "pjp_pending" | "completed";
+  i18nKey: TimelineKey;
+}> = [
+  { key: "created", i18nKey: "tx_detail.timeline.created" },
+  { key: "solana_pending", i18nKey: "tx_detail.timeline.solana_pending" },
+  { key: "solana_confirmed", i18nKey: "tx_detail.timeline.solana_confirmed" },
+  { key: "pjp_pending", i18nKey: "tx_detail.timeline.pjp_pending" },
+  { key: "completed", i18nKey: "tx_detail.timeline.completed" },
+];
 
 const STATUS_RANK: Record<UserTransaction["status"], number> = {
   created: 0,
@@ -56,6 +67,7 @@ export default function TransactionDetailPage() {
   const router = useRouter();
   const params = useParams<{ id: string }>();
   const id = params?.id;
+  const { t } = useT();
 
   const [tx, setTx] = useState<UserTransaction | null>(null);
   const [loading, setLoading] = useState(true);
@@ -80,7 +92,7 @@ export default function TransactionDetailPage() {
       const msg =
         err instanceof ApiError
           ? err.code === "not_found"
-            ? "Transaksi tidak ditemukan"
+            ? t("tx_detail.error.tx_not_found")
             : err.code
           : (err as Error).message;
       setError(msg);
@@ -111,7 +123,7 @@ export default function TransactionDetailPage() {
             className="-mr-2 inline-flex h-9 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"
           >
             <ArrowLeft className="size-4" />
-            <span>Kembali</span>
+            <span>{t("common.back")}</span>
           </Link>
         </div>
       </header>
@@ -120,17 +132,17 @@ export default function TransactionDetailPage() {
         {/* Page title + refresh */}
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm text-[var(--color-fg-subtle)]">Riwayat</p>
+            <p className="text-sm text-[var(--color-fg-subtle)]">{t("tx_detail.eyebrow")}</p>
             <h1 className="mt-0.5 flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--color-fg)]">
               <Receipt className="size-5 text-[var(--color-fg-subtle)]" />
-              Detail transaksi
+              {t("tx_detail.title")}
             </h1>
           </div>
           <button
             type="button"
             onClick={fetchTx}
             disabled={loading}
-            aria-label="Refresh"
+            aria-label={t("history.refresh_aria")}
             className="-mr-2 -mt-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)] disabled:opacity-50"
           >
             <RefreshCcw
@@ -148,14 +160,14 @@ export default function TransactionDetailPage() {
                 <XCircle className="size-5" />
               </div>
               <h3 className="mt-4 text-base font-semibold text-[var(--color-fg)]">
-                {error ?? "Tidak ditemukan"}
+                {error ?? t("tx_detail.error.not_found")}
               </h3>
               <p className="mt-1.5 max-w-sm text-sm text-[var(--color-fg-muted)]">
-                Transaksi mungkin sudah dihapus atau bukan milik akun ini.
+                {t("tx_detail.error.hint")}
               </p>
               <Link href="/history" className="mt-5">
                 <Button variant="secondary" size="sm">
-                  Kembali ke Riwayat
+                  {t("tx_detail.error.back")}
                 </Button>
               </Link>
             </div>
@@ -186,6 +198,7 @@ function DetailSkeleton() {
 }
 
 function DetailBody({ tx }: { tx: UserTransaction }) {
+  const { t } = useT();
   const isDeposit = tx.type === "deposit";
   const tone = statusToTone(tx.status);
   const usdcAmount = new BigNumber(tx.amount_usdc_lamports)
@@ -205,13 +218,13 @@ function DetailBody({ tx }: { tx: UserTransaction }) {
               <span className="inline-flex size-8 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/40 dark:text-emerald-400">
                 <ArrowDownToLine className="size-4" />
               </span>
-              <CardLabel>Deposit USDC diterima</CardLabel>
+              <CardLabel>{t("tx_detail.deposit.heading")}</CardLabel>
             </div>
             <p className="mt-2 font-mono text-3xl font-semibold tabular-nums tracking-tight text-emerald-600 dark:text-emerald-400 sm:text-4xl">
               +{formatUSDC(usdcAmount)} USDC
             </p>
             <div className="mt-3 flex items-center gap-2">
-              <Pill tone="success">Diterima on-chain</Pill>
+              <Pill tone="success">{t("tx_detail.deposit.received_pill")}</Pill>
               <Pill tone="neutral">Solana</Pill>
             </div>
           </div>
@@ -220,16 +233,16 @@ function DetailBody({ tx }: { tx: UserTransaction }) {
         <Card>
           <div className="divide-y divide-[var(--color-border-subtle)]">
             <DetailRow
-              label="Tanggal"
+              label={t("tx_detail.row.date")}
               value={
                 tx.pjp_settled_at
                   ? formatTxDate(tx.pjp_settled_at)
                   : formatTxDate(tx.created_at)
               }
             />
-            <DetailRow label="ID Transaksi" value={tx.id} mono />
+            <DetailRow label={t("tx_detail.row.tx_id")} value={tx.id} mono />
             {tx.signature && (
-              <DetailRow label="Signature" value={tx.signature} mono />
+              <DetailRow label={t("tx_detail.row.signature")} value={tx.signature} mono />
             )}
           </div>
         </Card>
@@ -245,10 +258,10 @@ function DetailBody({ tx }: { tx: UserTransaction }) {
               <div className="flex items-center justify-between gap-3 px-5 py-4">
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-[var(--color-fg)]">
-                    Lihat di Solana Explorer
+                    {t("tx_detail.explorer.cta")}
                   </p>
                   <p className="mt-0.5 text-[11px] text-[var(--color-fg-subtle)]">
-                    Verifikasi transfer on-chain
+                    {t("tx_detail.explorer.sub_deposit")}
                   </p>
                 </div>
                 <ExternalLink className="size-4 shrink-0 text-[var(--color-fg-muted)]" />
@@ -265,7 +278,7 @@ function DetailBody({ tx }: { tx: UserTransaction }) {
       {/* Hero */}
       <Card variant="elevated" className="bg-card-mesh relative overflow-hidden">
         <div className="relative px-5 py-5 sm:px-7 sm:py-6">
-          <CardLabel>Total dibayar</CardLabel>
+          <CardLabel>{t("tx_detail.qris.total_paid")}</CardLabel>
           <p className="mt-2 font-mono text-3xl font-semibold tabular-nums tracking-tight text-[var(--color-fg)] sm:text-4xl">
             {tx.amount_idr !== null ? formatRupiah(tx.amount_idr) : "—"}
           </p>
@@ -273,7 +286,7 @@ function DetailBody({ tx }: { tx: UserTransaction }) {
             ≈ {formatUSDC(usdcAmount)} USDC
           </p>
           <div className="mt-3 flex items-center gap-2">
-            <Pill tone={tone}>{statusToLabel(tx.status)}</Pill>
+            <Pill tone={tone}>{t(statusToLabelKey(tx.status))}</Pill>
             {tx.pjp_partner !== "mock" && (
               <Pill tone="neutral">via {tx.pjp_partner}</Pill>
             )}
@@ -285,7 +298,7 @@ function DetailBody({ tx }: { tx: UserTransaction }) {
       {!isFailed && (
         <Card>
           <div className="px-5 py-5 sm:px-6">
-            <CardLabel>Status</CardLabel>
+            <CardLabel>{t("tx_detail.timeline.label")}</CardLabel>
             <ol className="mt-3 space-y-3.5">
               {TIMELINE_STEPS.map((step, idx) => {
                 const reached = STATUS_RANK[tx.status] >= idx;
@@ -311,7 +324,7 @@ function DetailBody({ tx }: { tx: UserTransaction }) {
                           : "text-[var(--color-fg-faint)]"
                       }`}
                     >
-                      {step.label}
+                      {t(step.i18nKey)}
                     </span>
                   </li>
                 );
@@ -328,10 +341,10 @@ function DetailBody({ tx }: { tx: UserTransaction }) {
             <XCircle className="mt-0.5 size-5 shrink-0 text-red-600 dark:text-red-400" />
             <div className="text-sm">
               <p className="font-medium text-red-700 dark:text-red-200">
-                Transaksi gagal
+                {t("tx_detail.failure.title")}
               </p>
               <p className="mt-1 text-red-700/80 dark:text-red-200/80">
-                Alasan:{" "}
+                {t("tx_detail.failure.reason")}:{" "}
                 <code className="rounded bg-red-100 px-1.5 py-0.5 text-[12px] dark:bg-red-900/40">
                   {tx.failure_reason}
                 </code>
@@ -345,38 +358,38 @@ function DetailBody({ tx }: { tx: UserTransaction }) {
       <Card>
         <div className="divide-y divide-[var(--color-border-subtle)]">
           {tx.merchant_name && (
-            <DetailRow label="Merchant" value={tx.merchant_name} />
+            <DetailRow label={t("tx_detail.row.merchant")} value={tx.merchant_name} />
           )}
           {tx.merchant_id && (
-            <DetailRow label="NMID" value={tx.merchant_id} mono />
+            <DetailRow label={t("tx_detail.row.nmid")} value={tx.merchant_id} mono />
           )}
-          {tx.acquirer && <DetailRow label="Acquirer" value={tx.acquirer} />}
+          {tx.acquirer && <DetailRow label={t("tx_detail.row.acquirer")} value={tx.acquirer} />}
           {tx.exchange_rate && (
             <DetailRow
-              label="Kurs"
+              label={t("tx_detail.row.rate")}
               value={`1 USDC = ${formatRupiah(tx.exchange_rate)}`}
             />
           )}
           {tx.app_fee_idr !== null && (
             <DetailRow
-              label="Biaya layanan"
+              label={t("tx_detail.row.app_fee")}
               value={formatRupiah(tx.app_fee_idr)}
             />
           )}
           <DetailRow
-            label="Tanggal"
+            label={t("tx_detail.row.date")}
             value={formatTxDate(tx.created_at)}
           />
           {tx.pjp_settled_at && (
             <DetailRow
-              label="Settled at"
+              label={t("tx_detail.row.settled_at")}
               value={formatTxDate(tx.pjp_settled_at)}
             />
           )}
           {tx.pjp_id && (
-            <DetailRow label="PJP ID" value={tx.pjp_id} mono />
+            <DetailRow label={t("tx_detail.row.pjp_id")} value={tx.pjp_id} mono />
           )}
-          <DetailRow label="ID Transaksi" value={tx.id} mono />
+          <DetailRow label={t("tx_detail.row.tx_id")} value={tx.id} mono />
         </div>
       </Card>
 
@@ -392,7 +405,7 @@ function DetailBody({ tx }: { tx: UserTransaction }) {
             <div className="flex items-center justify-between gap-3 px-5 py-4">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-[var(--color-fg)]">
-                  Lihat di Solana Explorer
+                  {t("tx_detail.explorer.cta")}
                 </p>
                 <p className="mt-0.5 truncate font-mono text-[11px] text-[var(--color-fg-subtle)]">
                   {tx.signature}

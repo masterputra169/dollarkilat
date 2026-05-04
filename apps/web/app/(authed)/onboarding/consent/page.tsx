@@ -13,6 +13,7 @@ import {
 } from "@dollarkilat/shared";
 import { api, ApiError } from "@/lib/api";
 import { formatRupiah } from "@/lib/format";
+import { useT } from "@/lib/i18n";
 import { Logo } from "@/components/brand/logo";
 
 // Biometric / "Mode Aman" was removed — every user goes through One-Tap
@@ -39,6 +40,7 @@ export default function ConsentPage() {
   const { addSessionSigners } = useSessionSigners();
   const { wallets: solanaWallets } = useSolanaWallets();
   const router = useRouter();
+  const { t } = useT();
 
   const [submitting, setSubmitting] = useState<Mode | null>(null);
 
@@ -93,13 +95,11 @@ export default function ConsentPage() {
   async function chooseOneTap() {
     const wallet = solanaWallets[0];
     if (!wallet) {
-      toast.error("Wallet belum siap. Coba refresh halaman.");
+      toast.error(t("consent.toast.wallet_not_ready"));
       return;
     }
     if (!SIGNER_ID) {
-      toast.error(
-        "One-Tap belum dikonfigurasi. Hubungi admin (NEXT_PUBLIC_PRIVY_SIGNER_ID belum di-set).",
-      );
+      toast.error(t("consent.toast.signer_missing"));
       return;
     }
     setSubmitting("one_tap");
@@ -132,7 +132,7 @@ export default function ConsentPage() {
           max_per_day_idr: DELEGATED_DEFAULT_MAX_PER_DAY_IDR,
         }),
       });
-      toast.success("One-Tap aktif. Pembayaran kecil tanpa popup.");
+      toast.success(t("consent.toast.success"));
       router.replace("/receive");
     } catch (err) {
       const msg =
@@ -140,7 +140,7 @@ export default function ConsentPage() {
           ? `${err.code}: ${err.message}`
           : (err as Error).message ?? "unknown";
       console.error("[consent] delegate failed:", err);
-      toast.error(`Gagal aktifkan One-Tap: ${msg}`);
+      toast.error(t("consent.toast.failed", { error: msg }));
     } finally {
       setSubmitting(null);
     }
@@ -159,34 +159,33 @@ export default function ConsentPage() {
       <header className="mx-auto flex w-full max-w-2xl items-center justify-between px-5 py-4 sm:px-8">
         <Logo />
         <span className="text-[10px] font-medium uppercase tracking-[0.14em] text-[var(--color-fg-subtle)]">
-          Langkah 1 dari 2
+          {t("consent.step")}
         </span>
       </header>
 
       <div className="mx-auto w-full max-w-2xl px-5 py-4 sm:px-8 sm:py-6">
         <h1 className="text-balance text-[1.75rem] font-semibold leading-tight tracking-[-0.02em] text-[var(--color-fg)] sm:text-4xl">
-          Aktifkan
+          {t("consent.title_1")}
           <br />
-          <span className="text-gradient-brand">One-Tap pembayaran</span>.
+          <span className="text-gradient-brand">{t("consent.title_2")}</span>.
         </h1>
         <p className="mt-3 max-w-md text-sm text-[var(--color-fg-muted)] sm:text-[15px]">
-          Bayar QRIS langsung jalan, tanpa popup tiap transaksi. Bisa
-          di-revoke kapan saja di Setelan.
+          {t("consent.sub")}
         </p>
 
         <div className="mt-7 space-y-3 sm:mt-9 sm:space-y-4">
           <ChoiceCard
             tone="brand"
             icon={<Zap className="size-5" />}
-            badge="Direkomendasikan"
-            title="One-Tap"
-            description="Pembayaran ≤ Rp 500.000 jalan tanpa popup. Privy aman simpan signing key di hardware enclave."
+            badge={t("consent.choice.recommended")}
+            title={t("consent.choice.title")}
+            description={t("consent.choice.desc")}
             bullets={[
-              `Otomatis untuk transaksi ≤ ${formatRupiah(DELEGATED_DEFAULT_MAX_PER_TX_IDR)}`,
-              `Limit harian ${formatRupiah(DELEGATED_DEFAULT_MAX_PER_DAY_IDR)}`,
-              "Bisa di-revoke kapan saja",
+              t("consent.bullet.auto", { amount: formatRupiah(DELEGATED_DEFAULT_MAX_PER_TX_IDR) }),
+              t("consent.bullet.daily", { amount: formatRupiah(DELEGATED_DEFAULT_MAX_PER_DAY_IDR) }),
+              t("consent.bullet.revocable"),
             ]}
-            cta="Aktifkan One-Tap"
+            cta={t("consent.cta")}
             ctaIcon={<ArrowRight className="size-4" />}
             loading={submitting === "one_tap"}
             disabled={submitting !== null}
@@ -196,11 +195,7 @@ export default function ConsentPage() {
 
         <div className="mt-8 flex items-start gap-2.5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-4 text-xs leading-relaxed text-[var(--color-fg-muted)]">
           <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[var(--color-success)]" />
-          <span>
-            Apa pun yang kamu pilih, kunci wallet tidak pernah berpindah.
-            Privy pakai TEE (Trusted Execution Environment) untuk delegasi —
-            mirip Touch ID di iPhone, bukan custodial.
-          </span>
+          <span>{t("consent.shield_note")}</span>
         </div>
       </div>
     </main>

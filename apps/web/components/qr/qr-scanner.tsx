@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Camera, ImageUp, Pencil, RefreshCw, X } from "lucide-react";
+import { useT } from "@/lib/i18n";
 
 interface Props {
   /** Called when a QR is decoded. Caller decides whether to validate as QRIS. */
@@ -26,6 +27,7 @@ type Mode = "camera" | "upload" | "manual";
  * to the API; that's the parent's job.
  */
 export function QRScanner({ onDecode, onError, autoStart = true }: Props) {
+  const { t } = useT();
   const [mode, setMode] = useState<Mode>("camera");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,9 +75,7 @@ export function QRScanner({ onDecode, onError, autoStart = true }: Props) {
     if (!video) return;
 
     if (typeof window !== "undefined" && !window.isSecureContext) {
-      setError(
-        "Kamera butuh halaman aman (HTTPS atau localhost). Pakai Mode Unggah atau Mode Manual.",
-      );
+      setError(t("scanner.camera.insecure"));
       return;
     }
 
@@ -149,11 +149,11 @@ export function QRScanner({ onDecode, onError, autoStart = true }: Props) {
 
         const friendlyMsg =
           name === "NotAllowedError" || /Permission|NotAllowed/i.test(msg)
-            ? "Akses kamera ditolak. Cek izin browser, atau pakai Mode Unggah."
+            ? t("scanner.camera.denied")
             : name === "NotFoundError"
-              ? "Tidak ada kamera tersedia. Pakai Mode Unggah atau Mode Manual."
+              ? t("scanner.camera.not_found")
               : name === "NotReadableError"
-                ? "Kamera dipakai aplikasi lain. Tutup app lain dulu."
+                ? t("scanner.camera.busy")
                 : msg;
         setError(friendlyMsg);
         onError?.(err as Error);
@@ -198,7 +198,7 @@ export function QRScanner({ onDecode, onError, autoStart = true }: Props) {
       onDecode(result.data);
     } catch (err) {
       const msg = (err as Error).message ?? "scan_failed";
-      setError(`Tidak ada QR di gambar (${msg})`);
+      setError(t("scanner.upload.no_qr", { reason: msg }));
       onError?.(err as Error);
     } finally {
       setBusy(false);
@@ -208,7 +208,7 @@ export function QRScanner({ onDecode, onError, autoStart = true }: Props) {
   function handleManualSubmit() {
     const v = manualText.trim();
     if (!v) {
-      setError("Tempel string QRIS dulu");
+      setError(t("scanner.manual.empty"));
       return;
     }
     // QRIS strings start with "00020101" (payload format indicator + version)
@@ -216,9 +216,7 @@ export function QRScanner({ onDecode, onError, autoStart = true }: Props) {
     // common "user pasted random text" case here so the parser doesn't
     // throw and trigger Next.js's dev error overlay.
     if (v.length < 50 || !v.startsWith("0002")) {
-      setError(
-        "String QRIS tidak valid. Harus diawali '00020101…' dan minimum 50 karakter.",
-      );
+      setError(t("scanner.manual.invalid"));
       return;
     }
     onDecode(v);
@@ -250,9 +248,9 @@ export function QRScanner({ onDecode, onError, autoStart = true }: Props) {
   return (
     <div className="flex flex-col gap-3">
       <div className="flex gap-1 rounded-full border border-white/[0.06] bg-white/[0.02] p-1">
-        {tabBtn("camera", <Camera className="size-3.5" />, "Kamera")}
-        {tabBtn("upload", <ImageUp className="size-3.5" />, "Unggah")}
-        {tabBtn("manual", <Pencil className="size-3.5" />, "Manual")}
+        {tabBtn("camera", <Camera className="size-3.5" />, t("scanner.tab.camera"))}
+        {tabBtn("upload", <ImageUp className="size-3.5" />, t("scanner.tab.upload"))}
+        {tabBtn("manual", <Pencil className="size-3.5" />, t("scanner.tab.manual"))}
       </div>
 
       {mode === "camera" && (
@@ -260,7 +258,7 @@ export function QRScanner({ onDecode, onError, autoStart = true }: Props) {
           videoRef={videoRef}
           hasCamera={hasCamera}
           busy={busy}
-          onRestart={() => setRestartTick((t) => t + 1)}
+          onRestart={() => setRestartTick((tick) => tick + 1)}
         />
       )}
 
@@ -277,7 +275,7 @@ export function QRScanner({ onDecode, onError, autoStart = true }: Props) {
             htmlFor="qris-manual-input"
             className="text-[11px] font-medium uppercase tracking-[0.14em] text-[var(--color-fg-subtle)]"
           >
-            QRIS string
+            {t("scanner.manual.label")}
           </label>
           <textarea
             id="qris-manual-input"
@@ -293,7 +291,7 @@ export function QRScanner({ onDecode, onError, autoStart = true }: Props) {
             disabled={busy || manualText.trim().length < 50}
             className="btn-gradient-brand inline-flex h-10 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Decode
+            {t("scanner.manual.decode")}
           </button>
         </div>
       )}
@@ -320,12 +318,13 @@ function CameraSurface({
   busy: boolean;
   onRestart: () => void;
 }) {
+  const { t } = useT();
   if (hasCamera === false) {
     return (
       <div className="flex aspect-square w-full flex-col items-center justify-center gap-2 rounded-2xl border border-white/[0.06] bg-white/[0.02] p-6 text-center">
         <X className="size-6 text-[var(--color-fg-subtle)]" />
         <p className="text-sm text-[var(--color-fg-muted)]">
-          Perangkat tidak punya kamera. Pakai mode Unggah atau Manual.
+          {t("scanner.camera.no_device")}
         </p>
       </div>
     );
@@ -346,13 +345,13 @@ function CameraSurface({
       <button
         type="button"
         onClick={onRestart}
-        aria-label="Restart kamera"
+        aria-label={t("scanner.camera.restart_aria")}
         className="absolute right-3 top-3 inline-flex size-8 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-md hover:bg-black/70"
       >
         <RefreshCw className="size-3.5" />
       </button>
       <div className="pointer-events-none absolute inset-x-6 bottom-4 text-center text-[11px] text-white/70">
-        Arahkan kamera ke kode QRIS
+        {t("scanner.camera.aim")}
       </div>
     </div>
   );
@@ -367,6 +366,7 @@ function UploadSurface({
   busy: boolean;
   onPick: (f: File) => void;
 }) {
+  const { t } = useT();
   return (
     <label className="group relative flex aspect-square w-full cursor-pointer flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-white/[0.1] bg-white/[0.02] p-6 text-center transition-colors hover:bg-white/[0.04]">
       <input
@@ -384,10 +384,10 @@ function UploadSurface({
         <ImageUp className="size-5" />
       </div>
       <p className="text-sm font-medium text-[var(--color-fg)]">
-        Tap untuk pilih gambar QRIS
+        {t("scanner.upload.cta")}
       </p>
       <p className="-mt-1 text-xs text-[var(--color-fg-muted)]">
-        Screenshot dari WhatsApp / galeri juga OK
+        {t("scanner.upload.sub")}
       </p>
       {busy && (
         <div className="absolute inset-0 flex items-center justify-center rounded-2xl bg-black/40 backdrop-blur-sm">

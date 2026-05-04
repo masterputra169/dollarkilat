@@ -7,10 +7,12 @@ import Link from "next/link";
 import { ArrowLeft, Mail, ShieldCheck } from "lucide-react";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
+import { useT } from "@/lib/i18n";
 
 export default function LoginPage() {
   const { ready, authenticated, login } = usePrivy();
   const router = useRouter();
+  const { t } = useT();
 
   useEffect(() => {
     if (ready && authenticated) {
@@ -29,7 +31,7 @@ export default function LoginPage() {
           className="-ml-2 inline-flex h-10 items-center gap-1.5 rounded-full px-3 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:text-[var(--color-fg)]"
         >
           <ArrowLeft className="size-4" />
-          Kembali
+          {t("common.back")}
         </Link>
         <Logo iconOnly className="sm:hidden" />
       </div>
@@ -39,10 +41,10 @@ export default function LoginPage() {
           <div className="mb-8 flex flex-col items-center text-center">
             <Logo iconOnly className="mb-5" />
             <h1 className="text-3xl font-semibold tracking-tight text-[var(--color-fg)]">
-              Masuk
+              {t("login.title")}
             </h1>
             <p className="mt-2 text-sm text-[var(--color-fg-muted)]">
-              Wallet Solana otomatis dibuat saat signup. Tanpa seed phrase.
+              {t("login.sub")}
             </p>
           </div>
 
@@ -55,16 +57,16 @@ export default function LoginPage() {
             onClick={() => login()}
             leftIcon={<Mail className="size-4" />}
           >
-            {ready ? "Masuk dengan Email" : "Memuat"}
+            {ready ? t("login.cta") : t("login.loading")}
           </Button>
 
           <p className="mt-5 text-center text-xs leading-relaxed text-[var(--color-fg-subtle)]">
-            Dengan masuk, kamu setuju dengan{" "}
+            {t("login.terms_prefix")}{" "}
             <Link
               href="/terms"
               className="text-[var(--color-fg-muted)] underline-offset-2 hover:text-[var(--color-fg)] hover:underline"
             >
-              Syarat Layanan
+              {t("login.terms_link")}
             </Link>
             .
           </p>
@@ -72,9 +74,7 @@ export default function LoginPage() {
           <div className="mt-10 flex items-start gap-2.5 rounded-xl border border-[var(--color-border)] bg-[var(--color-bg-elevated)] p-4">
             <ShieldCheck className="mt-0.5 size-4 shrink-0 text-[var(--color-brand)]" />
             <p className="text-xs leading-relaxed text-[var(--color-fg-muted)]">
-              Saldo USDC kamu tetap di wallet kamu sendiri. Kami{" "}
-              <span className="font-medium text-[var(--color-fg)]">bukan custodian</span>
-              {" "}— transit only saat kamu authorize pembayaran.
+              {t("login.shield")}
             </p>
           </div>
         </div>

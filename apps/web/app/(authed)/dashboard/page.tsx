@@ -27,14 +27,16 @@ import type {
   UserTransaction,
 } from "@dollarkilat/shared";
 import {
-  formatTxRelative,
-  statusToLabel,
+  formatTxRelativeI18n,
+  statusToLabelKey,
   statusToTone,
 } from "@/lib/tx-status";
 import { Pill } from "@/components/ui/pill";
 import { api, ApiError } from "@/lib/api";
 import { readCache, writeCache } from "@/lib/swr-cache";
 import { formatRupiah, formatUSDC, usdcToIdr } from "@/lib/format";
+import { useT } from "@/lib/i18n";
+import { LanguageToggle } from "@/components/language-toggle";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardLabel } from "@/components/ui/card";
@@ -47,6 +49,7 @@ export default function DashboardPage() {
   const { ready, authenticated, user, getAccessToken } = usePrivy();
   const { wallets: solanaWallets } = useSolanaWallets();
   const router = useRouter();
+  const { t } = useT();
 
   const [synced, setSynced] = useState<User | null>(null);
   const [syncing, setSyncing] = useState(false);
@@ -378,10 +381,11 @@ export default function DashboardPage() {
                 {email}
               </span>
             )}
+            <LanguageToggle />
             <InstallButton iconOnly />
             <Link
               href="/settings"
-              aria-label="Setelan"
+              aria-label={t("nav.settings")}
               className="inline-flex size-9 items-center justify-center rounded-full text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"
             >
               <SettingsIcon className="size-4" />
@@ -393,22 +397,35 @@ export default function DashboardPage() {
       <div className="mx-auto w-full max-w-2xl space-y-4 px-5 py-5 sm:space-y-5 sm:px-8 sm:py-8">
         {/* greeting */}
         <div>
-          <p className="text-sm text-[var(--color-fg-subtle)]">Selamat datang 👋</p>
+          <p className="text-sm text-[var(--color-fg-subtle)]">{t("dashboard.greeting")}</p>
           <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-[var(--color-fg)]">
-            Dashboard
+            {t("dashboard.title")}
           </h1>
+        </div>
+
+        {/* Devnet badge — sits above the balance card so users immediately
+            see this is testnet money before reading the big USDC number.
+            Right-aligned to mirror standard "network indicator" placement. */}
+        <div className="flex justify-end">
+          <span
+            title={t("devnet.tooltip")}
+            className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-300"
+          >
+            <span className="size-1.5 animate-pulse rounded-full bg-amber-400" />
+            {t("devnet.badge")}
+          </span>
         </div>
 
         {/* balance hero */}
         <Card variant="elevated" className="bg-card-mesh relative overflow-hidden">
           <div className="relative px-5 pt-5 sm:px-8 sm:pt-6">
             <div className="flex items-start justify-between">
-              <CardLabel>Saldo USDC</CardLabel>
+              <CardLabel>{t("dashboard.balance.label")}</CardLabel>
               <button
                 type="button"
                 onClick={fetchBalanceAndRate}
                 disabled={balanceLoading || !solanaAddress}
-                aria-label="Refresh saldo"
+                aria-label={t("dashboard.balance.refresh_aria")}
                 className="-mr-2 -mt-2 inline-flex size-8 items-center justify-center rounded-full text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)] disabled:opacity-50"
               >
                 <RefreshCcw
@@ -428,16 +445,16 @@ export default function DashboardPage() {
             )}
             <p className="mt-1.5 text-sm text-[var(--color-fg-muted)] sm:mt-2">
               ≈ {balanceIdrDisplay}{" "}
-              <span className="text-[var(--color-fg-faint)]">(estimasi)</span>
+              <span className="text-[var(--color-fg-faint)]">{t("dashboard.balance.estimate")}</span>
             </p>
           </div>
           <div className="mt-4 flex items-center justify-between gap-2 border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)] px-5 py-2.5 text-xs text-[var(--color-fg-muted)] sm:mt-5 sm:px-8 sm:py-3">
             <span className="truncate">
               {balanceError
-                ? `Gagal ambil data (${balanceError})`
+                ? t("dashboard.balance.fetch_failed", { code: balanceError })
                 : lastUpdated
-                  ? `Update ${formatRelativeTime(lastUpdated)}`
-                  : "Memuat saldo on-chain…"}
+                  ? t("dashboard.balance.update_ago", { time: formatRelativeTime(lastUpdated) })
+                  : t("dashboard.balance.loading")}
             </span>
             {rate && (
               <span className="shrink-0 font-mono text-[var(--color-fg-subtle)]">
@@ -451,7 +468,7 @@ export default function DashboardPage() {
         <Card>
           <div className="flex items-center justify-between gap-3 p-4 sm:p-6">
             <div className="min-w-0 flex-1">
-              <CardLabel>Alamat Solana</CardLabel>
+              <CardLabel>{t("dashboard.address.title")}</CardLabel>
               <div className="mt-2 truncate font-mono text-[13px] text-[var(--color-fg)] sm:text-sm">
                 {solanaAddress ? (
                   <>
@@ -461,7 +478,7 @@ export default function DashboardPage() {
                 ) : syncing ? (
                   <Skeleton className="h-4 w-48" />
                 ) : (
-                  <span className="text-[var(--color-fg-muted)]">Belum tersedia</span>
+                  <span className="text-[var(--color-fg-muted)]">{t("dashboard.address.empty")}</span>
                 )}
               </div>
             </div>
@@ -471,7 +488,7 @@ export default function DashboardPage() {
                 size="sm"
                 onClick={copyAddress}
                 disabled={!solanaAddress}
-                aria-label="Salin alamat"
+                aria-label={t("dashboard.address.copy_aria")}
                 leftIcon={
                   copied ? (
                     <Check className="size-3.5 text-[var(--color-success)]" />
@@ -481,7 +498,7 @@ export default function DashboardPage() {
                 }
               >
                 <span className="hidden sm:inline">
-                  {copied ? "Tersalin" : "Salin"}
+                  {copied ? t("common.copied") : t("common.copy")}
                 </span>
               </Button>
             </div>
@@ -492,22 +509,22 @@ export default function DashboardPage() {
         <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
           <ActionTile
             icon={<QrCode className="size-5" />}
-            label="Bayar"
-            badge="Segera"
+            label={t("dashboard.actions.pay")}
+            badge={t("dashboard.actions.badge_soon")}
             tone="brand"
             href="/pay"
           />
           <ActionTile
             icon={<ArrowDownToLine className="size-5" />}
-            label="Terima"
-            badge="Segera"
+            label={t("dashboard.actions.receive")}
+            badge={t("dashboard.actions.badge_soon")}
             tone="emerald"
             href="/receive"
           />
           <ActionTile
             icon={<Store className="size-5" />}
-            label="Merchant"
-            badge="Baru"
+            label={t("dashboard.actions.merchant")}
+            badge={t("dashboard.actions.badge_new")}
             tone="amber"
             href="/merchant"
           />
@@ -520,7 +537,7 @@ export default function DashboardPage() {
         {recentTx === null ? (
           <Card variant="outline">
             <div className="px-5 py-6 sm:px-6">
-              <CardLabel>Riwayat</CardLabel>
+              <CardLabel>{t("dashboard.recent.title")}</CardLabel>
               <div className="mt-4 space-y-2.5">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <Skeleton key={i} className="h-12 w-full" />
@@ -535,24 +552,26 @@ export default function DashboardPage() {
                 <ArrowUpFromLine className="size-5" />
               </div>
               <h3 className="mt-4 text-base font-semibold text-[var(--color-fg)]">
-                {isZeroBalance ? "Belum ada USDC" : "Belum ada transaksi"}
+                {isZeroBalance
+                  ? t("dashboard.recent.empty.no_balance")
+                  : t("dashboard.recent.empty.no_tx")}
               </h3>
               <p className="mt-1.5 max-w-sm text-sm text-[var(--color-fg-muted)]">
                 {isZeroBalance
-                  ? "Klik Terima untuk dapat alamat deposit, atau kirim USDC ke alamat di atas."
-                  : "Setelah kamu bayar lewat QRIS, riwayat akan muncul di sini."}
+                  ? t("dashboard.recent.empty.hint_no_balance")
+                  : t("dashboard.recent.empty.hint_no_tx")}
               </p>
             </div>
           </Card>
         ) : (
           <Card>
             <div className="flex items-center justify-between px-5 pb-2 pt-5 sm:px-6">
-              <CardLabel>Riwayat terbaru</CardLabel>
+              <CardLabel>{t("dashboard.recent.title_recent")}</CardLabel>
               <Link
                 href="/history"
                 className="inline-flex items-center gap-1 text-xs font-medium text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
               >
-                Lihat semua
+                {t("dashboard.recent.see_all")}
                 <ChevronRight className="size-3.5" />
               </Link>
             </div>
@@ -605,10 +624,10 @@ export default function DashboardPage() {
                         </div>
                         <div className="mt-0.5 flex items-center justify-between gap-2">
                           <Pill tone={isDeposit ? "success" : statusToTone(tx.status)}>
-                            {isDeposit ? "Diterima" : statusToLabel(tx.status)}
+                            {isDeposit ? t("status.received") : t(statusToLabelKey(tx.status))}
                           </Pill>
                           <span className="shrink-0 text-[11px] text-[var(--color-fg-subtle)]">
-                            {formatTxRelative(tx.created_at)}
+                            {formatTxRelativeI18n(tx.created_at, t)}
                           </span>
                         </div>
                       </div>
@@ -711,6 +730,7 @@ interface TaxSummary {
 }
 
 function TaxSummaryCard({ token }: { token: () => Promise<string | null> }) {
+  const { t } = useT();
   const [summary, setSummary] = useState<TaxSummary | null>(() =>
     readCache<TaxSummary>("dashboard:tax-summary"),
   );
@@ -719,10 +739,10 @@ function TaxSummaryCard({ token }: { token: () => Promise<string | null> }) {
     let cancelled = false;
     (async () => {
       try {
-        const t = await token();
-        if (!t || cancelled) return;
+        const accessToken = await token();
+        if (!accessToken || cancelled) return;
         const res = await api<TaxSummary>("/transactions/tax-summary", {
-          token: t,
+          token: accessToken,
         });
         if (cancelled) return;
         setSummary(res);
@@ -762,7 +782,7 @@ function TaxSummaryCard({ token }: { token: () => Promise<string | null> }) {
           <Receipt className="size-4" />
         </div>
         <div className="min-w-0 flex-1">
-          <CardLabel>Aktivitas platform 24 jam</CardLabel>
+          <CardLabel>{t("tax.title")}</CardLabel>
           <div className="mt-1.5 space-y-1 text-sm">
             {bonusLamports > ZERO && (
               <p className="text-[var(--color-fg)]">
@@ -770,7 +790,7 @@ function TaxSummaryCard({ token }: { token: () => Promise<string | null> }) {
                   +{fmt(bonusLamports)} USDC
                 </span>{" "}
                 <span className="text-[var(--color-fg-muted)]">
-                  welcome bonus diterima
+                  {t("tax.welcome_bonus")}
                 </span>
               </p>
             )}
@@ -780,14 +800,13 @@ function TaxSummaryCard({ token }: { token: () => Promise<string | null> }) {
                   −{fmt(taxLamports)} USDC
                 </span>{" "}
                 <span className="text-[var(--color-fg-muted)]">
-                  pajak deposit ({summary.deposit_tax_count}{" "}
-                  {summary.deposit_tax_count === 1 ? "deposit" : "deposit"})
+                  {t("tax.deposit_tax", { count: summary.deposit_tax_count })}
                 </span>
               </p>
             )}
           </div>
           <p className="mt-2 text-[11px] text-[var(--color-fg-subtle)]">
-            0.2% platform fee dipotong otomatis tiap deposit USDC masuk.
+            {t("tax.footer")}
           </p>
         </div>
       </div>

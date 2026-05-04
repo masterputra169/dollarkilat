@@ -30,6 +30,7 @@ import type { ConsentResponse } from "@dollarkilat/shared";
 import { api, ApiError } from "@/lib/api";
 import { readCache, writeCache } from "@/lib/swr-cache";
 import { formatRupiah } from "@/lib/format";
+import { useT } from "@/lib/i18n";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 import { Card, CardLabel } from "@/components/ui/card";
@@ -43,6 +44,7 @@ export default function SettingsPage() {
   const { exportWallet } = useExportWallet();
   const { wallets: solanaWallets } = useSolanaWallets();
   const router = useRouter();
+  const { t } = useT();
 
   // Hydrate from in-memory cache so revisits render instantly while a
   // background fetch refreshes the data.
@@ -109,7 +111,7 @@ export default function SettingsPage() {
         token,
       });
 
-      toast.success("One-Tap dimatikan. Pembayaran sekarang minta konfirmasi.");
+      toast.success(t("settings.toast.onetap_off"));
       setConfirmRevoke(false);
       // Hard reload — Privy SDK caches session signer state in memory, so
       // even though the DB row + remote signer are gone, in-flight signing
@@ -119,7 +121,7 @@ export default function SettingsPage() {
     } catch (err) {
       const msg =
         err instanceof ApiError ? err.code : (err as Error).message ?? "unknown";
-      toast.error(`Gagal mematikan One-Tap: ${msg}`);
+      toast.error(t("settings.toast.onetap_off_failed", { error: msg }));
       setRevoking(false);
     }
   }
@@ -146,7 +148,7 @@ export default function SettingsPage() {
     if (!solanaAddress) return;
     await navigator.clipboard.writeText(solanaAddress);
     setCopiedAddr(true);
-    toast.success("Alamat disalin");
+    toast.success(t("settings.toast.copied"));
     setTimeout(() => setCopiedAddr(false), 2000);
   }
 
@@ -160,7 +162,7 @@ export default function SettingsPage() {
       await exportWallet({ address: solanaAddress });
     } catch (err) {
       const msg = (err as Error).message ?? "unknown";
-      toast.error(`Export gagal: ${msg}`);
+      toast.error(t("settings.toast.export_failed", { error: msg }));
     } finally {
       setExporting(false);
     }
@@ -176,7 +178,7 @@ export default function SettingsPage() {
             className="-mr-2 inline-flex h-9 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"
           >
             <ArrowLeft className="size-4" />
-            <span>Kembali</span>
+            <span>{t("common.back")}</span>
           </Link>
         </div>
       </header>
@@ -184,22 +186,22 @@ export default function SettingsPage() {
       <div className="mx-auto w-full max-w-2xl space-y-5 px-5 py-5 sm:space-y-6 sm:px-8 sm:py-8">
         {/* Page title */}
         <div>
-          <p className="text-sm text-[var(--color-fg-subtle)]">Akun & preferensi</p>
+          <p className="text-sm text-[var(--color-fg-subtle)]">{t("settings.eyebrow")}</p>
           <h1 className="mt-0.5 flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--color-fg)]">
             <SettingsIcon className="size-5 text-[var(--color-fg-subtle)]" />
-            Setelan
+            {t("settings.title")}
           </h1>
         </div>
 
         {/* Akun */}
         <section>
-          <SectionLabel icon={<UserIcon className="size-3.5" />}>Akun</SectionLabel>
+          <SectionLabel icon={<UserIcon className="size-3.5" />}>{t("settings.section.account")}</SectionLabel>
           <Card className="mt-2 divide-y divide-[var(--color-border-subtle)]">
-            <Row label="Email" value={typeof email === "string" ? email : "—"} />
+            <Row label={t("settings.row.email")} value={typeof email === "string" ? email : "—"} />
             <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
               <div className="min-w-0 flex-1">
                 <p className="text-[11px] uppercase tracking-[0.1em] text-[var(--color-fg-subtle)]">
-                  Alamat Solana
+                  {t("settings.row.solana_address")}
                 </p>
                 <p className="mt-1 truncate font-mono text-[13px] text-[var(--color-fg)]">
                   {solanaAddress ? (
@@ -208,7 +210,7 @@ export default function SettingsPage() {
                       <span className="sm:hidden">{shortAddr}</span>
                     </>
                   ) : (
-                    <span className="text-[var(--color-fg-muted)]">Belum tersedia</span>
+                    <span className="text-[var(--color-fg-muted)]">{t("dashboard.address.empty")}</span>
                   )}
                 </p>
               </div>
@@ -217,7 +219,7 @@ export default function SettingsPage() {
                 size="sm"
                 onClick={copyAddress}
                 disabled={!solanaAddress}
-                aria-label="Salin alamat"
+                aria-label={t("dashboard.address.copy_aria")}
                 leftIcon={
                   copiedAddr ? (
                     <Check className="size-3.5 text-[var(--color-success)]" />
@@ -227,7 +229,7 @@ export default function SettingsPage() {
                 }
               >
                 <span className="hidden sm:inline">
-                  {copiedAddr ? "Tersalin" : "Salin"}
+                  {copiedAddr ? t("common.copied") : t("common.copy")}
                 </span>
               </Button>
             </div>
@@ -237,7 +239,7 @@ export default function SettingsPage() {
         {/* Pembayaran */}
         <section>
           <SectionLabel icon={<Zap className="size-3.5" />}>
-            Pembayaran One-Tap
+            {t("settings.section.payment")}
           </SectionLabel>
 
           {loadingConsent ? (
@@ -255,20 +257,19 @@ export default function SettingsPage() {
                         <Zap className="size-4" />
                       </span>
                       <p className="text-sm font-semibold text-[var(--color-fg)]">
-                        One-Tap aktif
+                        {t("settings.onetap.active_title")}
                       </p>
-                      <Pill tone="success">Aktif</Pill>
+                      <Pill tone="success">{t("settings.onetap.active_pill")}</Pill>
                     </div>
                     <p className="mt-2 text-[13px] text-[var(--color-fg-muted)]">
-                      Pembayaran kecil otomatis tanpa popup tiap transaksi.
-                      Privy simpan signing key di Trusted Execution Environment.
+                      {t("settings.onetap.active_desc")}
                     </p>
                   </div>
                 </div>
                 <dl className="mt-4 grid grid-cols-2 gap-3 border-t border-[var(--color-border-subtle)] pt-4">
                   <div>
                     <dt className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-fg-subtle)]">
-                      Per transaksi
+                      {t("settings.onetap.per_tx")}
                     </dt>
                     <dd className="mt-1 font-mono text-sm font-semibold tabular-nums text-[var(--color-fg)]">
                       {consent.consent.max_per_tx_idr !== null
@@ -278,7 +279,7 @@ export default function SettingsPage() {
                   </div>
                   <div>
                     <dt className="text-[10px] uppercase tracking-[0.1em] text-[var(--color-fg-subtle)]">
-                      Limit harian
+                      {t("settings.onetap.daily_limit")}
                     </dt>
                     <dd className="mt-1 font-mono text-sm font-semibold tabular-nums text-[var(--color-fg)]">
                       {consent.consent.max_per_day_idr !== null
@@ -295,7 +296,7 @@ export default function SettingsPage() {
                   className="inline-flex items-center gap-1.5 text-xs font-medium text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300"
                 >
                   <ShieldOff className="size-3.5" />
-                  Matikan One-Tap
+                  {t("settings.onetap.disable")}
                 </button>
               </div>
             </Card>
@@ -307,13 +308,12 @@ export default function SettingsPage() {
                     <Shield className="size-4" />
                   </span>
                   <p className="text-sm font-semibold text-[var(--color-fg)]">
-                    One-Tap belum aktif
+                    {t("settings.onetap.inactive_title")}
                   </p>
-                  <Pill tone="warning">Perlu aktivasi</Pill>
+                  <Pill tone="warning">{t("settings.onetap.inactive_pill")}</Pill>
                 </div>
                 <p className="mt-2 text-[13px] text-[var(--color-fg-muted)]">
-                  Aktifkan One-Tap untuk bisa bayar QRIS. Sekali setup,
-                  pembayaran selanjutnya jalan otomatis tanpa popup.
+                  {t("settings.onetap.inactive_desc")}
                 </p>
               </div>
               <Link
@@ -322,7 +322,7 @@ export default function SettingsPage() {
               >
                 <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[var(--color-fg)]">
                   <Zap className="size-3.5 text-[var(--color-brand-soft-fg)]" />
-                  Aktifkan One-Tap
+                  {t("settings.onetap.activate_cta")}
                 </span>
                 <ChevronRight className="size-4 text-[var(--color-fg-faint)] transition-transform group-hover:translate-x-0.5" />
               </Link>
@@ -333,7 +333,7 @@ export default function SettingsPage() {
         {/* Keamanan & Wallet */}
         <section>
           <SectionLabel icon={<Key className="size-3.5" />}>
-            Keamanan & wallet
+            {t("settings.section.security")}
           </SectionLabel>
           <Card className="mt-2">
             <button
@@ -344,12 +344,10 @@ export default function SettingsPage() {
             >
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-[var(--color-fg)]">
-                  Ekspor private key
+                  {t("settings.export.title")}
                 </p>
                 <p className="mt-0.5 text-[12px] text-[var(--color-fg-muted)]">
-                  Untuk pindah wallet ke Phantom / Solflare. Privy tampilkan
-                  di iframe terisolasi — app dollarkilat tidak pernah lihat
-                  key kamu.
+                  {t("settings.export.desc")}
                 </p>
               </div>
               <ChevronRight className="size-4 shrink-0 text-[var(--color-fg-faint)] transition-transform group-hover:translate-x-0.5" />
@@ -359,34 +357,34 @@ export default function SettingsPage() {
 
         {/* Aplikasi */}
         <section>
-          <SectionLabel icon={<Info className="size-3.5" />}>Aplikasi</SectionLabel>
+          <SectionLabel icon={<Info className="size-3.5" />}>{t("settings.section.app")}</SectionLabel>
           <Card className="mt-2 divide-y divide-[var(--color-border-subtle)]">
             <div className="flex items-center justify-between gap-3 px-4 py-3.5 sm:px-5">
               <div className="min-w-0">
                 <p className="text-sm font-medium text-[var(--color-fg)]">
-                  Pasang sebagai aplikasi
+                  {t("settings.app.install_title")}
                 </p>
                 <p className="mt-0.5 text-[12px] text-[var(--color-fg-muted)]">
-                  Buka langsung dari home screen, tanpa browser bar.
+                  {t("settings.app.install_desc")}
                 </p>
               </div>
               <InstallButton />
             </div>
-            <Row label="Versi" value="0.1.0 — devnet" mono />
-            <Row label="Jaringan Solana" value="Devnet" mono />
+            <Row label={t("settings.app.version_label")} value="0.1.0 — devnet" mono />
+            <Row label={t("settings.app.network_label")} value="Devnet" mono />
           </Card>
         </section>
 
         {/* Dukungan */}
         <section>
-          <SectionLabel icon={<Info className="size-3.5" />}>Dukungan</SectionLabel>
+          <SectionLabel icon={<Info className="size-3.5" />}>{t("settings.section.support")}</SectionLabel>
           <Card className="mt-2 divide-y divide-[var(--color-border-subtle)]">
             <ExtLinkRow
-              label="Solana Explorer (devnet)"
+              label={t("settings.support.explorer")}
               href="https://explorer.solana.com?cluster=devnet"
             />
             <ExtLinkRow
-              label="GitHub repository"
+              label={t("settings.support.github")}
               href="https://github.com/masterputra169/dollarkilat"
             />
           </Card>
@@ -399,7 +397,7 @@ export default function SettingsPage() {
           leftIcon={<LogOut className="size-4" />}
           className="w-full text-red-600 dark:text-red-400"
         >
-          Keluar dari akun
+          {t("settings.logout")}
         </Button>
       </div>
 
@@ -418,31 +416,21 @@ export default function SettingsPage() {
                 <AlertTriangle className="size-5" />
               </span>
               <h2 className="text-base font-semibold text-[var(--color-fg)]">
-                Mau ekspor private key?
+                {t("settings.modal.export.title")}
               </h2>
             </div>
             <ul className="mt-4 space-y-2 text-[13px] text-[var(--color-fg-muted)]">
               <li className="flex gap-2">
                 <span className="mt-1.5 size-1 shrink-0 rounded-full bg-[var(--color-fg-faint)]" />
-                <span>
-                  Siapa pun yang punya key ini bisa <strong>menguras saldo
-                  USDC kamu</strong>. Jangan pernah share / screenshot ke
-                  tempat tidak aman.
-                </span>
+                <span>{t("settings.modal.export.warn1")}</span>
               </li>
               <li className="flex gap-2">
                 <span className="mt-1.5 size-1 shrink-0 rounded-full bg-[var(--color-fg-faint)]" />
-                <span>
-                  Privy tampilkan key di iframe terisolasi — dollarkilat
-                  tidak pernah lihat atau simpan.
-                </span>
+                <span>{t("settings.modal.export.warn2")}</span>
               </li>
               <li className="flex gap-2">
                 <span className="mt-1.5 size-1 shrink-0 rounded-full bg-[var(--color-fg-faint)]" />
-                <span>
-                  Setelah ekspor, kamu bisa import key ini ke Phantom /
-                  Solflare untuk akses penuh wallet di luar dollarkilat.
-                </span>
+                <span>{t("settings.modal.export.warn3")}</span>
               </li>
             </ul>
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
@@ -452,7 +440,7 @@ export default function SettingsPage() {
                 onClick={() => setConfirmExport(false)}
                 disabled={exporting}
               >
-                Batal
+                {t("common.cancel")}
               </Button>
               <Button
                 variant="primary"
@@ -462,7 +450,7 @@ export default function SettingsPage() {
                 loading={exporting}
                 leftIcon={!exporting ? <Key className="size-3.5" /> : undefined}
               >
-                {exporting ? "Membuka…" : "Ya, lanjut ekspor"}
+                {exporting ? t("settings.modal.export.opening") : t("settings.modal.export.confirm")}
               </Button>
             </div>
           </div>
@@ -484,12 +472,11 @@ export default function SettingsPage() {
                 <ShieldOff className="size-5" />
               </span>
               <h2 className="text-base font-semibold text-[var(--color-fg)]">
-                Matikan One-Tap?
+                {t("settings.modal.revoke.title")}
               </h2>
             </div>
             <p className="mt-3 text-sm text-[var(--color-fg-muted)]">
-              Setelah dimatikan, kamu tidak bisa bayar QRIS sampai One-Tap
-              diaktifkan ulang. Bisa di-aktifin lagi kapan saja di Setelan.
+              {t("settings.modal.revoke.desc")}
             </p>
             <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end sm:gap-3">
               <Button
@@ -498,7 +485,7 @@ export default function SettingsPage() {
                 onClick={() => setConfirmRevoke(false)}
                 disabled={revoking}
               >
-                Batal
+                {t("common.cancel")}
               </Button>
               <Button
                 variant="danger"
@@ -508,7 +495,7 @@ export default function SettingsPage() {
                 loading={revoking}
                 leftIcon={!revoking ? <ShieldOff className="size-3.5" /> : undefined}
               >
-                {revoking ? "Mematikan…" : "Ya, matikan"}
+                {revoking ? t("settings.modal.revoke.disabling") : t("settings.modal.revoke.confirm")}
               </Button>
             </div>
           </div>

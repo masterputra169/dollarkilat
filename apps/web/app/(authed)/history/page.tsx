@@ -22,11 +22,12 @@ import type {
 import { api, ApiError } from "@/lib/api";
 import { readCache, writeCache } from "@/lib/swr-cache";
 import { formatRupiah, formatUSDC } from "@/lib/format";
+import { useT } from "@/lib/i18n";
 import {
   groupToStatusCsv,
-  statusToLabel,
+  statusToLabelKey,
   statusToTone,
-  formatTxRelative,
+  formatTxRelativeI18n,
   type StatusGroup,
 } from "@/lib/tx-status";
 import { Logo } from "@/components/brand/logo";
@@ -35,16 +36,17 @@ import { Card } from "@/components/ui/card";
 import { Pill } from "@/components/ui/pill";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const FILTERS: Array<{ id: StatusGroup; label: string }> = [
-  { id: "all", label: "Semua" },
-  { id: "pending", label: "Diproses" },
-  { id: "done", label: "Selesai" },
-  { id: "failed", label: "Gagal" },
+const FILTERS: Array<{ id: StatusGroup; key: "history.filter.all" | "history.filter.pending" | "history.filter.done" | "history.filter.failed" }> = [
+  { id: "all", key: "history.filter.all" },
+  { id: "pending", key: "history.filter.pending" },
+  { id: "done", key: "history.filter.done" },
+  { id: "failed", key: "history.filter.failed" },
 ];
 
 export default function HistoryPage() {
   const { ready, authenticated, getAccessToken } = usePrivy();
   const router = useRouter();
+  const { t } = useT();
 
   const [filter, setFilter] = useState<StatusGroup>("all");
   // Initial state hydrates from in-memory cache so revisits render instantly.
@@ -149,7 +151,7 @@ export default function HistoryPage() {
             className="-mr-2 inline-flex h-9 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"
           >
             <ArrowLeft className="size-4" />
-            <span>Kembali</span>
+            <span>{t("common.back")}</span>
           </Link>
         </div>
       </header>
@@ -158,17 +160,17 @@ export default function HistoryPage() {
         {/* Page title + refresh */}
         <div className="flex items-start justify-between gap-3">
           <div>
-            <p className="text-sm text-[var(--color-fg-subtle)]">Aktivitas</p>
+            <p className="text-sm text-[var(--color-fg-subtle)]">{t("history.eyebrow")}</p>
             <h1 className="mt-0.5 flex items-center gap-2 text-2xl font-semibold tracking-tight text-[var(--color-fg)]">
               <Receipt className="size-5 text-[var(--color-fg-subtle)]" />
-              Riwayat
+              {t("history.title")}
             </h1>
           </div>
           <button
             type="button"
             onClick={() => fetchPage({ append: false })}
             disabled={loading}
-            aria-label="Refresh"
+            aria-label={t("history.refresh_aria")}
             className="-mr-2 -mt-1 inline-flex size-9 shrink-0 items-center justify-center rounded-full text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)] disabled:opacity-50"
           >
             <RefreshCcw
@@ -192,7 +194,7 @@ export default function HistoryPage() {
                     : "border-[var(--color-border)] bg-[var(--color-bg-elevated)] text-[var(--color-fg-muted)] hover:text-[var(--color-fg)]"
                 }`}
               >
-                {f.label}
+                {t(f.key)}
               </button>
             );
           })}
@@ -216,18 +218,18 @@ export default function HistoryPage() {
               </div>
               <h3 className="mt-4 text-base font-semibold text-[var(--color-fg)]">
                 {filter === "all"
-                  ? "Belum ada transaksi"
-                  : "Tidak ada transaksi pada filter ini"}
+                  ? t("history.empty.no_tx")
+                  : t("history.empty.no_tx_in_filter")}
               </h3>
               <p className="mt-1.5 max-w-sm text-sm text-[var(--color-fg-muted)]">
                 {filter === "all"
-                  ? "Setelah kamu bayar lewat QRIS, riwayat akan muncul di sini."
-                  : "Coba ganti filter di atas."}
+                  ? t("history.empty.hint_no_tx")
+                  : t("history.empty.hint_filter")}
               </p>
               {filter === "all" && (
                 <Link href="/pay" className="mt-5">
                   <Button variant="primary" size="sm">
-                    Bayar sekarang
+                    {t("history.empty.cta_pay")}
                   </Button>
                 </Link>
               )}
@@ -240,7 +242,7 @@ export default function HistoryPage() {
             ))}
             {error && (
               <p className="text-center text-xs text-[var(--color-danger)]">
-                Gagal memuat: {error}
+                {t("history.fetch_failed", { error })}
               </p>
             )}
             {cursor && (
@@ -251,7 +253,7 @@ export default function HistoryPage() {
                   disabled={loadingMore}
                   onClick={() => fetchPage({ append: true, before: cursor })}
                 >
-                  {loadingMore ? "Memuat…" : "Lebih banyak"}
+                  {loadingMore ? t("common.loading") : t("history.load_more")}
                 </Button>
               </div>
             )}
@@ -263,14 +265,15 @@ export default function HistoryPage() {
 }
 
 function TxRow({ tx }: { tx: UserTransaction }) {
+  const { t } = useT();
   const isDeposit = tx.type === "deposit";
   const tone = statusToTone(tx.status);
   const usdcAmount = new BigNumber(tx.amount_usdc_lamports)
     .dividedBy(1_000_000)
     .toFixed(2);
   const primaryLabel = isDeposit
-    ? "Deposit Solana"
-    : tx.merchant_name || "Merchant tanpa nama";
+    ? t("history.row.deposit_label")
+    : tx.merchant_name || t("history.row.merchant_unnamed");
   const primaryAmount = isDeposit
     ? `+${formatUSDC(usdcAmount)} USDC`
     : tx.amount_idr !== null
@@ -320,10 +323,10 @@ function TxRow({ tx }: { tx: UserTransaction }) {
                   ) : undefined
                 }
               >
-                {isDeposit ? "Diterima" : statusToLabel(tx.status)}
+                {isDeposit ? t("status.received") : t(statusToLabelKey(tx.status))}
               </Pill>
               <span className="shrink-0 text-[11px] text-[var(--color-fg-subtle)]">
-                {formatTxRelative(tx.created_at)}
+                {formatTxRelativeI18n(tx.created_at, t)}
               </span>
             </div>
           </div>

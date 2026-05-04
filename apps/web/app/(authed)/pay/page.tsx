@@ -28,6 +28,7 @@ import {
 import { api, ApiError } from "@/lib/api";
 import { publicEnv } from "@/lib/env";
 import { clearPayMarks, mark, summarizePay } from "@/lib/perf";
+import { useT } from "@/lib/i18n";
 import { Logo } from "@/components/brand/logo";
 import { Card, CardLabel } from "@/components/ui/card";
 import { QRScanner } from "@/components/qr/qr-scanner";
@@ -75,6 +76,7 @@ export default function PayPage() {
   const { signTransaction } = useSignTransaction();
   const { wallets: solanaWallets } = useSolanaWallets();
   const router = useRouter();
+  const { t } = useT();
   const [step, setStep] = useState<Step>({ kind: "scan" });
   const [consent, setConsent] = useState<ConsentResponse | null>(null);
   const [balance, setBalance] = useState<BalanceResponse | null>(null);
@@ -159,8 +161,8 @@ export default function PayPage() {
         decoded = parseQRIS(raw);
       } catch (err) {
         const code = err instanceof QRISParseError ? err.code : "unknown";
-        const msg = (err as Error).message ?? "QR tidak bisa dibaca";
-        toast.error(`QR tidak valid (${code}): ${msg}`);
+        const msg = (err as Error).message ?? "";
+        toast.error(t("pay.toast.qr_invalid", { code, message: msg }));
         return;
       }
 
@@ -258,7 +260,7 @@ export default function PayPage() {
             className="-mr-2 inline-flex h-9 items-center gap-1 rounded-full px-2.5 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-fg)]"
           >
             <ArrowLeft className="size-4" />
-            <span>Kembali</span>
+            <span>{t("common.back")}</span>
           </Link>
         </div>
       </header>
@@ -313,51 +315,19 @@ export default function PayPage() {
 // ── heading per step ─────────────────────────────────────────
 
 function Heading({ step }: { step: Step }) {
-  const map: Record<Step["kind"], { eyebrow: string; title: string; sub: string }> = {
-    scan: {
-      eyebrow: "Bayar QRIS",
-      title: "Scan QR merchant",
-      sub: "Arahkan kamera ke QRIS, atau unggah screenshot.",
-    },
-    amount: {
-      eyebrow: "QR Static",
-      title: "Masukkan nominal",
-      sub: "Merchant kirim QR tanpa nominal — kamu yang isi.",
-    },
-    quoting: {
-      eyebrow: "Bayar QRIS",
-      title: "Mengambil kurs…",
-      sub: "Hitung jumlah USDC + fee aplikasi.",
-    },
-    preview: {
-      eyebrow: "Konfirmasi pembayaran",
-      title: "Cek detail",
-      sub: "Periksa detail di bawah, lalu konfirmasi.",
-    },
-    processing: {
-      eyebrow: "Memproses",
-      title: "Mengirim transaksi…",
-      sub: "Tunggu sebentar — Solana settle dalam ~10 detik.",
-    },
-    success: {
-      eyebrow: "Selesai",
-      title: "Pembayaran berhasil",
-      sub: "Saldo akan terupdate di Dashboard.",
-    },
-    failed: {
-      eyebrow: "Gagal",
-      title: "Pembayaran gagal",
-      sub: "Coba scan ulang. Saldo kamu tidak berubah.",
-    },
-  };
-  const h = map[step.kind];
+  const { t } = useT();
+  const k = step.kind;
   return (
     <div>
-      <p className="text-sm text-[var(--color-fg-subtle)]">{h.eyebrow}</p>
+      <p className="text-sm text-[var(--color-fg-subtle)]">
+        {t(`pay.heading.${k}.eyebrow` as Parameters<typeof t>[0])}
+      </p>
       <h1 className="mt-0.5 text-2xl font-semibold tracking-tight text-[var(--color-fg)]">
-        {h.title}
+        {t(`pay.heading.${k}.title` as Parameters<typeof t>[0])}
       </h1>
-      <p className="mt-1.5 text-sm text-[var(--color-fg-muted)]">{h.sub}</p>
+      <p className="mt-1.5 text-sm text-[var(--color-fg-muted)]">
+        {t(`pay.heading.${k}.sub` as Parameters<typeof t>[0])}
+      </p>
     </div>
   );
 }
@@ -373,6 +343,7 @@ function AmountCard({
   onSubmit: (amount: number) => void;
   onCancel: () => void;
 }) {
+  const { t } = useT();
   const [raw, setRaw] = useState("");
 
   // Friendly thousand-grouped display while user types ("50000" → "50.000").
@@ -400,7 +371,7 @@ function AmountCard({
             <Store className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <CardLabel>Merchant</CardLabel>
+            <CardLabel>{t("pay.amount.merchant_label")}</CardLabel>
             <p className="mt-1 truncate text-base font-semibold text-[var(--color-fg)] sm:text-lg">
               {decoded.merchant_name}
             </p>
@@ -419,7 +390,7 @@ function AmountCard({
             htmlFor="static-amount"
             className="text-[10px] font-medium uppercase tracking-[0.16em] text-[var(--color-fg-subtle)]"
           >
-            Jumlah
+            {t("pay.amount.input_label")}
           </label>
           <div className="mt-2 flex items-baseline gap-3 rounded-xl border border-white/[0.08] bg-white/[0.02] px-4 py-3">
             <span className="shrink-0 font-mono text-base text-[var(--color-fg-muted)]">Rp</span>
@@ -447,11 +418,11 @@ function AmountCard({
           </div>
           <div className="mt-1.5 flex flex-col gap-0.5 text-[11px] sm:flex-row sm:items-center sm:justify-between sm:gap-2">
             <span className="text-[var(--color-fg-subtle)]">
-              Min Rp 1.000 — Max Rp 1.600.000
+              {t("pay.amount.range")}
             </span>
             {raw.length > 0 && (tooSmall || tooBig) && (
               <span className="text-[var(--color-warning)]">
-                {tooSmall ? "Terlalu kecil" : "Terlalu besar"}
+                {tooSmall ? t("pay.amount.too_small") : t("pay.amount.too_big")}
               </span>
             )}
           </div>
@@ -481,7 +452,7 @@ function AmountCard({
             className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-4 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-white/[0.07] hover:text-[var(--color-fg)]"
           >
             <RefreshCw className="size-4" />
-            Scan ulang
+            {t("pay.amount.scan_again")}
           </button>
           <button
             type="button"
@@ -489,7 +460,7 @@ function AmountCard({
             onClick={handleSubmit}
             className="btn-gradient-brand inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Lanjutkan
+            {t("common.continue")}
             <ArrowRight className="size-4" />
           </button>
         </div>
@@ -499,6 +470,7 @@ function AmountCard({
 }
 
 function QuotingCard({ decoded }: { decoded: QRISDecoded }) {
+  const { t } = useT();
   return (
     <Card variant="elevated">
       <div className="flex items-center gap-3 px-5 py-5 sm:px-6">
@@ -508,7 +480,7 @@ function QuotingCard({ decoded }: { decoded: QRISDecoded }) {
             {decoded.merchant_name}
           </p>
           <p className="text-xs text-[var(--color-fg-muted)]">
-            Mengambil kurs USDC ↔ IDR…
+            {t("pay.quoting.fetching_rate")}
           </p>
         </div>
       </div>
@@ -531,6 +503,7 @@ function PreviewCard({
   onConfirm: () => void;
   onReset: () => void;
 }) {
+  const { t } = useT();
   // One-Tap eligibility: active consent + amount within max_per_tx.
   // If false, the Bayar button is disabled (biometric fallback removed —
   // user must enable / re-enable One-Tap via /settings or onboarding).
@@ -587,7 +560,7 @@ function PreviewCard({
             <Store className="size-5" />
           </div>
           <div className="min-w-0 flex-1">
-            <CardLabel>Merchant</CardLabel>
+            <CardLabel>{t("pay.amount.merchant_label")}</CardLabel>
             <p className="mt-1 truncate text-base font-semibold text-[var(--color-fg)] sm:text-lg">
               {decoded.merchant_name}
             </p>
@@ -603,7 +576,7 @@ function PreviewCard({
 
         {/* amounts */}
         <div className="mt-5 border-t border-white/[0.05] pt-4">
-          <CardLabel>Jumlah dibayar</CardLabel>
+          <CardLabel>{t("pay.preview.amount_label")}</CardLabel>
           <p className="mt-2 font-mono text-3xl font-semibold tabular-nums tracking-tight text-[var(--color-fg)] sm:text-4xl">
             {formatRupiah(quote.amount_idr)}
           </p>
@@ -617,17 +590,17 @@ function PreviewCard({
 
         {/* breakdown */}
         <div className="mt-4 space-y-1.5 rounded-xl border border-white/[0.06] bg-white/[0.02] p-3 text-xs">
-          <Row label="Kurs">
+          <Row label={t("pay.preview.row_rate")}>
             1 USDC ={" "}
             <span className="font-mono">{formatRupiah(quote.exchange_rate)}</span>
           </Row>
-          <Row label="Fee aplikasi">
+          <Row label={t("pay.preview.row_app_fee")}>
             <span className="font-mono">~ 0.5%</span>
           </Row>
-          <Row label="Gas Solana">
-            <span className="text-[var(--color-success)]">Ditanggung kami</span>
+          <Row label={t("pay.preview.row_gas")}>
+            <span className="text-[var(--color-success)]">{t("pay.preview.row_gas_value")}</span>
           </Row>
-          <Row label="Quote berlaku">
+          <Row label={t("pay.preview.row_quote_ttl")}>
             <span
               className={
                 secondsLeft <= 5
@@ -635,14 +608,16 @@ function PreviewCard({
                   : "text-[var(--color-fg-muted)]"
               }
             >
-              {expired ? "kadaluarsa" : `${secondsLeft}s lagi`}
+              {expired
+                ? t("pay.preview.quote_expired")
+                : t("pay.preview.quote_seconds_left", { n: secondsLeft })}
             </span>
           </Row>
         </div>
 
         {decoded.merchant_id && (
           <div className="mt-3 flex justify-between text-[11px] text-[var(--color-fg-subtle)]">
-            <span>NMID</span>
+            <span>{t("pay.preview.nmid_label")}</span>
             <span className="font-mono">{decoded.merchant_id}</span>
           </div>
         )}
@@ -651,21 +626,23 @@ function PreviewCard({
       {insufficient && (
         <div className="border-t border-red-500/20 bg-red-500/[0.06] px-5 py-3 sm:px-6">
           <p className="text-[12px] leading-relaxed text-red-300">
-            <strong className="font-semibold">Saldo USDC kurang.</strong> Top up
-            wallet lo dulu — saldo sekarang {formatUSDC(balance!.ui_amount)} USDC.
+            <strong className="font-semibold">{t("pay.preview.insufficient_strong")}</strong>{" "}
+            {t("pay.preview.insufficient_hint", {
+              balance: formatUSDC(balance!.ui_amount),
+            })}
           </p>
         </div>
       )}
       {!consent?.consent && (
         <div className="border-t border-amber-500/20 bg-amber-500/[0.06] px-5 py-3 sm:px-6">
           <p className="text-[12px] leading-relaxed text-amber-200">
-            <strong className="font-semibold">One-Tap belum aktif.</strong>{" "}
-            Aktifkan dulu di{" "}
+            <strong className="font-semibold">{t("pay.preview.consent_off_strong")}</strong>{" "}
+            {t("pay.preview.consent_off_hint")}{" "}
             <Link
               href="/onboarding/consent"
               className="underline-offset-2 hover:underline"
             >
-              halaman onboarding
+              {t("pay.preview.consent_off_link")}
             </Link>
             .
           </p>
@@ -674,10 +651,10 @@ function PreviewCard({
       {consentRevoked && (
         <div className="border-t border-amber-500/20 bg-amber-500/[0.06] px-5 py-3 sm:px-6">
           <p className="text-[12px] leading-relaxed text-amber-200">
-            <strong className="font-semibold">One-Tap di-revoke.</strong>{" "}
-            Aktifkan ulang di{" "}
+            <strong className="font-semibold">{t("pay.preview.consent_revoked_strong")}</strong>{" "}
+            {t("pay.preview.consent_revoked_hint")}{" "}
             <Link href="/settings" className="underline-offset-2 hover:underline">
-              Setelan
+              {t("pay.preview.consent_revoked_link")}
             </Link>
             .
           </p>
@@ -686,8 +663,8 @@ function PreviewCard({
       {overLimit && (
         <div className="border-t border-amber-500/20 bg-amber-500/[0.06] px-5 py-3 sm:px-6">
           <p className="text-[12px] leading-relaxed text-amber-200">
-            <strong className="font-semibold">Melebihi limit per-transaksi.</strong>{" "}
-            Naikin limit One-Tap di Setelan, atau bayar dalam jumlah lebih kecil.
+            <strong className="font-semibold">{t("pay.preview.over_limit_strong")}</strong>{" "}
+            {t("pay.preview.over_limit_hint")}
           </p>
         </div>
       )}
@@ -699,7 +676,7 @@ function PreviewCard({
             className="inline-flex h-11 items-center justify-center gap-1.5 rounded-full border border-white/10 bg-white/[0.03] px-4 text-sm font-medium text-[var(--color-fg-muted)] transition-colors hover:bg-white/[0.07] hover:text-[var(--color-fg)]"
           >
             <RefreshCw className="size-4" />
-            Scan ulang
+            {t("pay.amount.scan_again")}
           </button>
           <button
             type="button"
@@ -707,7 +684,7 @@ function PreviewCard({
             onClick={onConfirm}
             className="btn-gradient-brand inline-flex h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-50"
           >
-            Bayar Sekarang
+            {t("pay.preview.pay_now")}
             <ArrowRight className="size-4" />
           </button>
         </div>
@@ -732,20 +709,22 @@ function Row({
 }
 
 function OneTapBadge() {
+  const { t } = useT();
   return (
     <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.1em] text-blue-300 ring-1 ring-blue-500/25">
-      <Zap className="size-3" /> One-Tap
+      <Zap className="size-3" /> {t("pay.preview.one_tap_badge")}
     </span>
   );
 }
 
 function ProcessingCard({ quote }: { quote: QuoteResponse }) {
+  const { t } = useT();
   // Indeterminate progress with informative substeps for legitimacy.
   const steps = [
-    "Tanda-tangan transaksi",
-    "Submit ke Solana",
-    "Konfirmasi on-chain",
-    "Notifikasi PJP",
+    t("pay.processing.step_sign"),
+    t("pay.processing.step_submit"),
+    t("pay.processing.step_confirm"),
+    t("pay.processing.step_notify"),
   ];
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -800,6 +779,7 @@ function SuccessCard({
   isMock: boolean;
   onDone: () => void;
 }) {
+  const { t } = useT();
   const explorerUrl = `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
   return (
     <Card variant="elevated" className="bg-card-mesh-emerald">
@@ -809,7 +789,7 @@ function SuccessCard({
         </div>
         {isMock && (
           <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.12em] text-amber-300">
-            Demo mode · UI flow only
+            {t("pay.success.demo_badge")}
           </span>
         )}
         <div>
@@ -817,7 +797,7 @@ function SuccessCard({
             {formatRupiah(quote.amount_idr)}
           </p>
           <p className="mt-1 text-sm text-[var(--color-fg-muted)]">
-            ke{" "}
+            {t("pay.success.to")}{" "}
             <span className="font-medium text-[var(--color-fg)]">
               {quote.merchant_name}
             </span>
@@ -833,12 +813,6 @@ function SuccessCard({
           <span className="font-mono">{signature.slice(0, 8)}…{signature.slice(-6)}</span>
           <ExternalLink className="size-3" />
         </a>
-        {isMock && (
-          <p className="max-w-xs text-[11px] leading-relaxed text-[var(--color-fg-subtle)]">
-            Signature ini placeholder. Day 7 nyalain real Solana fee-payer
-            signing → tx beneran muncul di Solana Explorer.
-          </p>
-        )}
       </div>
       <div className="border-t border-white/[0.05] p-4 sm:p-5">
         <button
@@ -846,7 +820,7 @@ function SuccessCard({
           onClick={onDone}
           className="btn-gradient-brand inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-full px-5 text-sm font-medium text-white"
         >
-          Selesai
+          {t("common.done")}
         </button>
       </div>
     </Card>
@@ -860,6 +834,7 @@ function FailedCard({
   reason: string;
   onRetry: () => void;
 }) {
+  const { t } = useT();
   return (
     <Card variant="outline">
       <div className="flex flex-col items-center gap-3 px-5 py-8 text-center sm:px-6 sm:py-10">
@@ -867,7 +842,7 @@ function FailedCard({
           <RefreshCw className="size-5" />
         </div>
         <p className="text-sm text-[var(--color-fg-muted)]">
-          <span className="text-[var(--color-fg)]">Detail:</span>{" "}
+          <span className="text-[var(--color-fg)]">{t("pay.failed.label")}:</span>{" "}
           <span className="break-all font-mono text-xs">{reason}</span>
         </p>
         <button
@@ -875,7 +850,7 @@ function FailedCard({
           onClick={onRetry}
           className="btn-gradient-brand inline-flex h-11 items-center justify-center gap-1.5 rounded-full px-5 text-sm font-medium text-white"
         >
-          Coba Lagi
+          {t("common.retry")}
         </button>
       </div>
     </Card>

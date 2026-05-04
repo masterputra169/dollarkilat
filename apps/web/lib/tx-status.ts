@@ -36,6 +36,21 @@ export function statusToLabel(status: TransactionStatus): string {
   }
 }
 
+/** i18n key form of statusToLabel — caller does t(statusToLabelKey(s)). */
+export function statusToLabelKey(
+  status: TransactionStatus,
+):
+  | "status.created"
+  | "status.user_signing"
+  | "status.solana_pending"
+  | "status.solana_confirmed"
+  | "status.pjp_pending"
+  | "status.completed"
+  | "status.failed_settlement"
+  | "status.rejected" {
+  return `status.${status}` as const;
+}
+
 export function statusToTone(status: TransactionStatus): StatusTone {
   switch (status) {
     case "completed":
@@ -90,5 +105,38 @@ export function formatTxRelative(iso: string): string {
   const day = Math.floor(hr / 24);
   if (day === 1) return "kemarin";
   if (day < 7) return `${day} hari lalu`;
+  return formatTxDate(iso).split(",")[0] ?? iso;
+}
+
+/** Keys formatTxRelativeI18n needs from the dict. Narrowed so the strict
+ * useT() t-fn (typed against the full DictKey union) is assignable. */
+export type TxTimeKey =
+  | "tx_time.just_now"
+  | "tx_time.seconds_ago"
+  | "tx_time.minutes_ago"
+  | "tx_time.hours_ago"
+  | "tx_time.yesterday"
+  | "tx_time.days_ago";
+
+/**
+ * i18n-aware variant: returns a translated relative string based on the
+ * current language. Caller passes the `t` function from `useT()`.
+ * Falls back to absolute date when older than 7 days.
+ */
+export function formatTxRelativeI18n(
+  iso: string,
+  t: (key: TxTimeKey, vars?: Record<string, string | number>) => string,
+): string {
+  const ms = Date.now() - new Date(iso).getTime();
+  const sec = Math.floor(ms / 1000);
+  if (sec < 30) return t("tx_time.just_now");
+  if (sec < 60) return t("tx_time.seconds_ago", { n: sec });
+  const min = Math.floor(sec / 60);
+  if (min < 60) return t("tx_time.minutes_ago", { n: min });
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return t("tx_time.hours_ago", { n: hr });
+  const day = Math.floor(hr / 24);
+  if (day === 1) return t("tx_time.yesterday");
+  if (day < 7) return t("tx_time.days_ago", { n: day });
   return formatTxDate(iso).split(",")[0] ?? iso;
 }
