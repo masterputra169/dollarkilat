@@ -1042,7 +1042,7 @@ interface LangCtx {
 }
 
 const Ctx = createContext<LangCtx>({
-  lang: "id",
+  lang: "en",
   setLang: () => {},
   t: (k) => k,
 });
@@ -1057,10 +1057,13 @@ function interpolate(template: string, vars?: Vars): string {
 }
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>("id");
+  // English is the default — broader judges audience for the global hackathon
+  // submission. Users who pick Indonesian via the toggle have it persisted in
+  // localStorage and rehydrated on next mount.
+  const [lang, setLangState] = useState<Lang>("en");
 
-  // Hydrate from localStorage AFTER mount — server renders Indonesian default
-  // so we don't mismatch hydration, then swap on the client if user has saved EN.
+  // Hydrate from localStorage AFTER mount — server renders English default
+  // so we don't mismatch hydration, then swap on the client if user has saved ID.
   useEffect(() => {
     if (typeof window === "undefined") return;
     try {
@@ -1084,7 +1087,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
   const t = useCallback(
     (key: DictKey, vars?: Vars) => {
-      const template = dict[lang][key] ?? dict.id[key] ?? key;
+      // Fallback chain: current lang → English (default) → key as-is.
+      const template = dict[lang][key] ?? dict.en[key] ?? key;
       return interpolate(template, vars);
     },
     [lang],

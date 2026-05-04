@@ -453,7 +453,7 @@ export default function DashboardPage() {
               {balanceError
                 ? t("dashboard.balance.fetch_failed", { code: balanceError })
                 : lastUpdated
-                  ? t("dashboard.balance.update_ago", { time: formatRelativeTime(lastUpdated) })
+                  ? t("dashboard.balance.update_ago", { time: formatRelativeTime(lastUpdated, t) })
                   : t("dashboard.balance.loading")}
             </span>
             {rate && (
@@ -649,15 +649,27 @@ function errCode(err: unknown): string {
   return (err as Error)?.message ?? "unknown";
 }
 
-function formatRelativeTime(date: Date): string {
+// Local relative-time formatter for the balance "Updated X ago" label.
+// Uses the long-form tx_time keys so the output reads like a sentence
+// ("5 menit lalu" / "5 minutes ago") rather than the compact tx-row form.
+type RelativeTimeKey =
+  | "tx_time.just_now"
+  | "tx_time.seconds_ago"
+  | "tx_time.minutes_ago"
+  | "tx_time.hours_ago";
+
+function formatRelativeTime(
+  date: Date,
+  t: (key: RelativeTimeKey, vars?: Record<string, string | number>) => string,
+): string {
   const diff = Date.now() - date.getTime();
   const sec = Math.floor(diff / 1000);
-  if (sec < 5) return "barusan";
-  if (sec < 60) return `${sec} detik lalu`;
+  if (sec < 5) return t("tx_time.just_now");
+  if (sec < 60) return t("tx_time.seconds_ago", { n: sec });
   const min = Math.floor(sec / 60);
-  if (min < 60) return `${min} menit lalu`;
+  if (min < 60) return t("tx_time.minutes_ago", { n: min });
   const hr = Math.floor(min / 60);
-  return `${hr} jam lalu`;
+  return t("tx_time.hours_ago", { n: hr });
 }
 
 type ActionTone = "brand" | "emerald" | "amber";
